@@ -15,12 +15,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `1.0.0` or later
+3. Select version: `1.0.1` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "1.0.0")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "1.0.1")
 ]
 ```
 
