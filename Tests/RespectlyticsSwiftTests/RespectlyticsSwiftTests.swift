@@ -34,12 +34,13 @@ final class RespectlyticsSwiftTests: XCTestCase {
     func testEventCreation() {
         let event = Event(
             name: "test_event",
-            properties: ["key": "value"],
+            screen: "TestScreen",
             userId: "user123",
             sessionId: "session456"
         )
         
         XCTAssertEqual(event.eventName, "test_event")
+        XCTAssertEqual(event.screen, "TestScreen")
         XCTAssertEqual(event.userId, "user123")
         XCTAssertEqual(event.sessionId, "session456")
         XCTAssertFalse(event.timestamp.isEmpty)
@@ -48,7 +49,7 @@ final class RespectlyticsSwiftTests: XCTestCase {
     func testEventEncoding() throws {
         let event = Event(
             name: "test_event",
-            properties: ["string": "value", "number": 42, "bool": true],
+            screen: "HomeScreen",
             userId: "user123",
             sessionId: "session456"
         )
@@ -62,12 +63,13 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let decoded = try decoder.decode(Event.self, from: data)
         XCTAssertEqual(decoded.eventName, event.eventName)
         XCTAssertEqual(decoded.userId, event.userId)
+        XCTAssertEqual(decoded.screen, event.screen)
     }
     
-    func testEventEncodingWithoutProperties() throws {
+    func testEventEncodingWithoutOptionalFields() throws {
         let event = Event(
             name: "simple_event",
-            properties: nil,
+            screen: nil,
             userId: nil,
             sessionId: "session789"
         )
@@ -80,6 +82,39 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let decoded = try decoder.decode(Event.self, from: data)
         XCTAssertEqual(decoded.eventName, "simple_event")
         XCTAssertNil(decoded.userId)
+        XCTAssertNil(decoded.screen)
+    }
+    
+    func testEventEncodesOnlyAllowedFields() throws {
+        let event = Event(
+            name: "test_event",
+            screen: "ProductPage",
+            userId: "abc123",
+            sessionId: "session456"
+        )
+        
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(event)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        
+        // These fields should be present (API allowlist)
+        XCTAssertNotNil(json["event_name"])
+        XCTAssertNotNil(json["timestamp"])
+        XCTAssertNotNil(json["session_id"])
+        XCTAssertNotNil(json["user_id"])
+        XCTAssertNotNil(json["screen"])
+        XCTAssertNotNil(json["platform"])
+        XCTAssertNotNil(json["os_version"])
+        XCTAssertNotNil(json["app_version"])
+        XCTAssertNotNil(json["locale"])
+        XCTAssertNotNil(json["device_type"])
+        
+        // These fields should NOT be present (privacy violation)
+        XCTAssertNil(json["properties"])
+        XCTAssertNil(json["metadata"])
+        XCTAssertNil(json["data"])
+        XCTAssertNil(json["custom"])
+        XCTAssertNil(json["extra"])
     }
     
     // MARK: - Session Manager Tests
@@ -142,64 +177,6 @@ final class RespectlyticsSwiftTests: XCTestCase {
         XCTAssertEqual(config.apiEndpoint, customEndpoint)
     }
     
-    // MARK: - AnyCodable Tests
-    
-    func testAnyCodableString() throws {
-        let value = AnyCodable("test")
-        
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(value)
-        let string = String(data: data, encoding: .utf8)
-        
-        XCTAssertEqual(string, "\"test\"")
-    }
-    
-    func testAnyCodableInt() throws {
-        let value = AnyCodable(42)
-        
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(value)
-        let string = String(data: data, encoding: .utf8)
-        
-        XCTAssertEqual(string, "42")
-    }
-    
-    func testAnyCodableBool() throws {
-        let value = AnyCodable(true)
-        
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(value)
-        let string = String(data: data, encoding: .utf8)
-        
-        XCTAssertEqual(string, "true")
-    }
-    
-    func testAnyCodableArray() throws {
-        let value = AnyCodable([1, 2, 3])
-        
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(value)
-        let string = String(data: data, encoding: .utf8)
-        
-        XCTAssertEqual(string, "[1,2,3]")
-    }
-    
-    func testAnyCodableDictionary() throws {
-        let value = AnyCodable(["key": "value"])
-        
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(value)
-        
-        let decoder = JSONDecoder()
-        let decoded = try decoder.decode(AnyCodable.self, from: data)
-        
-        if let dict = decoded.value as? [String: Any] {
-            XCTAssertEqual(dict["key"] as? String, "value")
-        } else {
-            XCTFail("Expected dictionary")
-        }
-    }
-    
     // MARK: - Integration Tests
     
     func testFullEventFlow() {
@@ -209,13 +186,34 @@ final class RespectlyticsSwiftTests: XCTestCase {
         // Enable user tracking
         Respectlytics.identify()
         
-        // Track an event
-        Respectlytics.track("test_event", properties: ["action": "test"])
+        // Track events (no properties - API doesn't support them)
+        Respectlytics.track("test_event")
+        Respectlytics.track("view_product", screen: "ProductDetail")
         
         // Reset user
         Respectlytics.reset()
         
         // Should complete without crash
+        XCTAssertTrue(true)
+    }
+    
+    func testTrackWithScreen() {
+        Respectlytics.configure(apiKey: "test-api-key")
+        
+        // Track with screen parameter
+        Respectlytics.track("button_clicked", screen: "HomePage")
+        Respectlytics.track("purchase", screen: "CheckoutScreen")
+        
+        XCTAssertTrue(true)
+    }
+    
+    func testTrackWithoutScreen() {
+        Respectlytics.configure(apiKey: "test-api-key")
+        
+        // Track without screen parameter - should work fine
+        Respectlytics.track("app_launched")
+        Respectlytics.track("session_started")
+        
         XCTAssertTrue(true)
     }
 }

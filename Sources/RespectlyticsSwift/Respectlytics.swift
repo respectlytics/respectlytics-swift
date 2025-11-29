@@ -22,7 +22,8 @@ import Foundation
 /// Respectlytics.identify()
 /// 
 /// // 3. Track events
-/// Respectlytics.track("purchase", properties: ["plan": "pro"])
+/// Respectlytics.track("purchase")
+/// Respectlytics.track("view_product", screen: "ProductDetail")
 /// ```
 public final class Respectlytics {
     
@@ -68,12 +69,15 @@ public final class Respectlytics {
         }
     }
     
-    /// Track an event with optional properties.
+    /// Track an event with an optional screen name.
+    ///
+    /// The SDK automatically collects privacy-safe metadata:
+    /// - timestamp, session_id, platform, os_version, app_version, locale
     ///
     /// - Parameters:
     ///   - eventName: Name of the event (e.g., "purchase", "button_clicked")
-    ///   - properties: Optional dictionary of additional properties
-    public static func track(_ eventName: String, properties: [String: Any]? = nil) {
+    ///   - screen: Optional screen name where the event occurred
+    public static func track(_ eventName: String, screen: String? = nil) {
         shared.queue.async {
             guard shared.configuration != nil else {
                 print("[Respectlytics] ⚠️ SDK not configured. Call configure(apiKey:) first.")
@@ -95,7 +99,7 @@ public final class Respectlytics {
                 timestamp: ISO8601DateFormatter().string(from: Date()),
                 sessionId: shared.sessionManager.getSessionId(),
                 userId: shared.userManager.userId,
-                properties: properties,
+                screen: screen,
                 metadata: EventMetadata.current()
             )
             
