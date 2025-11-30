@@ -15,12 +15,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `1.0.1` or later
+3. Select version: `1.0.2` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "1.0.1")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "1.0.2")
 ]
 ```
 
@@ -95,9 +95,6 @@ Respectlytics.track("checkout_started", screen: "CartScreen")
 - `locale` - e.g., "en_US"
 - `device_type` - "phone", "tablet", or "desktop"
 
-**Privacy by Design:**
-The SDK only sends fields from the API's strict allowlist. Custom properties are not supported - this is intentional to protect user privacy.
-
 ### `identify()`
 
 Enable cross-session user tracking. Generates and persists a random user ID that will be included in all subsequent events.
@@ -141,23 +138,23 @@ The SDK handles these automatically - no developer action needed:
 | **Retry Logic** | Failed requests retry with exponential backoff (max 3 attempts) |
 | **Background Sync** | Events flushed when app enters background |
 
-## Privacy
+## Privacy by Design
 
-RespectlyticsSwift is designed with privacy as a core principle:
+| What we DON'T collect | Why |
+|----------------------|-----|
+| IDFA / GAID | Device advertising IDs can track users across apps |
+| Device fingerprints | Can be used to identify users without consent |
+| IP addresses | Used only for geolocation lookup, then discarded |
+| Custom properties | Prevents accidental PII collection |
 
-### What We Collect
-- ✅ Event name and screen (you explicitly track these)
-- ✅ Timestamp, session ID, and optional user ID
-- ✅ Platform (iOS/macOS), OS version, app version, locale, device type
-
-### What We DO NOT Collect
-- ❌ Device identifiers (IDFA, IDFV, etc.)
-- ❌ Device model or hardware information
-- ❌ Carrier or network details
-- ❌ Screen resolution or device name
-- ❌ Location data
-- ❌ IP addresses (anonymized on server)
-- ❌ Custom properties or arbitrary data
+| What we DO collect | Purpose |
+|-------------------|---------|
+| Event name | Analytics |
+| Screen name | Navigation analytics |
+| Random session ID | Group events in a session |
+| Random user ID (opt-in) | Cross-session analytics |
+| Platform, OS version | Debugging |
+| App version | Debugging |
 
 ### Why No Custom Properties?
 
