@@ -124,13 +124,13 @@ The SDK handles these automatically - no developer action needed:
 
 ## Privacy by Design
 
-Your privacy is our priority. Our mobile analytics solution is meticulously designed to provide valuable insights without compromising your data. We achieve this by collecting only session-based data, using anonymized identifiers that are stored only in your device's memory and renewed every two hours or upon app restart. This innovative approach ensures that no personal data is processed, making our solution fully compliant with GDPR and the ePrivacy Directive, so you can avoid the need for user consent for analytics collection.
+Your privacy is our priority. Our mobile analytics solution is meticulously designed to provide valuable insights without compromising your data. We achieve this by collecting only session-based data, using anonymized identifiers that are stored only in your device's memory and renewed every two hours or upon app restart. IP addresses are processed transiently for approximate geolocation (country and region) only and are never stored. This privacy-by-design approach ensures that no personal data is retained, making our solution designed to comply with GDPR and the ePrivacy Directive, potentially enabling analytics without user consent in many jurisdictions.
 
 | What we DON'T collect | Why |
 |----------------------|-----|
 | IDFA / GAID | Device advertising IDs can track users across apps |
 | Device fingerprints | Can be used to identify users without consent |
-| IP addresses | Used only for geolocation lookup, then discarded |
+| IP addresses | Processed transiently for country/region lookup, then immediately discarded |
 | Custom properties | Prevents accidental PII collection |
 | Persistent user IDs | Cross-session tracking requires consent |
 
