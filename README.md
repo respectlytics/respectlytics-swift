@@ -110,8 +110,6 @@ Session IDs are managed entirely by the SDK - no configuration needed.
 - **RAM-only storage**: Session IDs are never written to disk (GDPR/ePrivacy compliant)
 - **No cross-session tracking**: Each session is independent and anonymous
 
-This design ensures full compliance with GDPR and the ePrivacy Directive without requiring user consent for analytics.
-
 ## Automatic Behaviors
 
 The SDK handles these automatically - no developer action needed:
@@ -126,6 +124,8 @@ The SDK handles these automatically - no developer action needed:
 
 ## Privacy by Design
 
+Your privacy is our priority. Our mobile analytics solution is meticulously designed to provide valuable insights without compromising your data. We achieve this by collecting only session-based data, using anonymized identifiers that are stored only in your device's memory and renewed every two hours or upon app restart. This innovative approach ensures that no personal data is processed, making our solution fully compliant with GDPR and the ePrivacy Directive, so you can avoid the need for user consent for analytics collection.
+
 | What we DON'T collect | Why |
 |----------------------|-----|
 | IDFA / GAID | Device advertising IDs can track users across apps |
@@ -138,21 +138,13 @@ The SDK handles these automatically - no developer action needed:
 |-------------------|---------|
 | Event name | Analytics |
 | Screen name | Navigation analytics |
-| Session ID (ephemeral, 2-hour rotation) | Group events within a session |
+| Session ID (RAM-only, 2-hour rotation) | Group events within a session |
 | Platform, OS version | Debugging |
 | App version | Debugging |
 
 ### Why No Custom Properties?
 
 Respectlytics uses a strict allowlist to ensure only privacy-safe data can be collected. The API rejects any fields not on this list. This prevents accidental collection of sensitive user data and ensures compliance with privacy regulations.
-
-### Session-Based Analytics
-
-Respectlytics v2.0.0 uses **session-based analytics only**:
-- Each session is independent and anonymous
-- Sessions are generated fresh on every app launch
-- No persistent identifiers are stored on device
-- No consent required under ePrivacy Directive Article 5(3)
 
 ## Migration from v1.x
 
@@ -209,7 +201,7 @@ This SDK is provided under a proprietary license. See the [LICENSE](LICENSE) fil
 
 ## Support
 
-- Documentation: [https://respectlytics.com/docs/](https://respectlytics.com/docs/)
+- Documentation: [https://respectlytics.com/sdk/](https://respectlytics.com/sdk/)
 - Issues: [https://github.com/respectlytics/respectlytics-swift/issues](https://github.com/respectlytics/respectlytics-swift/issues)
 - Email: respectlytics@loheden.com
 
