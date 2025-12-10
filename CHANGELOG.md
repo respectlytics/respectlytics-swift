@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-12-10
+
+### ⚠️ Breaking Changes
+- **REMOVED**: `identify()` method (GDPR/ePrivacy compliance)
+- **REMOVED**: `reset()` method (no longer needed)
+- **REMOVED**: Keychain storage for user IDs
+- **REMOVED**: `UserManager` class entirely
+
+### Changed
+- Session IDs now generated in RAM only (never persisted to disk)
+- New session ID generated on every app launch
+- Session timeout changed from 30 minutes to 2 hours
+- Sessions rotate automatically every 2 hours of continuous use
+- Event payloads no longer include `user_id` field
+
+### Why This Change?
+Storing identifiers on device (Keychain/UserDefaults) requires user consent under 
+ePrivacy Directive Article 5(3). In-memory sessions require no consent, making 
+Respectlytics truly consent-free analytics.
+
+### Migration
+Remove any calls to `identify()` and `reset()`. Session management is now automatic.
+
+```swift
+// Before (v1.x)
+Respectlytics.configure(apiKey: "your-api-key")
+Respectlytics.identify()  // ❌ Remove this
+Respectlytics.track("event")
+Respectlytics.reset()     // ❌ Remove this
+
+// After (v2.0.0)
+Respectlytics.configure(apiKey: "your-api-key")
+Respectlytics.track("event")  // ✅ That's it!
+```
+
+---
+
 ## [1.0.2] - 2025-11-30
 
 ### Changed

@@ -30,7 +30,7 @@ final class IntegrationTests: XCTestCase {
             TestConfiguration.printEnvironmentStatus()
             Self.environmentPrinted = true
             Self.testResults = []
-            print("🧪 Running Integration Tests...")
+            print("🧪 Running Integration Tests (v2.0.0 - Session-Based Analytics)...")
         }
         
         // Check for API key - tests will be skipped if not set
@@ -39,13 +39,6 @@ final class IntegrationTests: XCTestCase {
         }
         apiKey = key
         eventsURL = TestConfiguration.activeEventsURL
-        
-        // Reset SDK state
-        Respectlytics.reset()
-    }
-    
-    override func tearDown() async throws {
-        Respectlytics.reset()
     }
     
     // MARK: - Test: Valid Event Submission (201)
@@ -54,7 +47,7 @@ final class IntegrationTests: XCTestCase {
     func testEventSubmission_Returns201() async throws {
         let testName = "testEventSubmission"
         
-        // Build event payload
+        // Build event payload (no user_id in v2.0.0)
         let event = buildTestEvent(name: "sdk_test_valid_event", screen: "TestScreen")
         
         // Send directly to API
@@ -115,26 +108,32 @@ final class IntegrationTests: XCTestCase {
         }
     }
     
-    // MARK: - Test: Event with User ID (201)
+    // MARK: - Test: Event with user_id is REJECTED (400)
     
-    /// Verify that events with user_id are accepted
-    func testEventWithUserId_Returns201() async throws {
-        let testName = "testUserIdentification"
+    /// Verify that events with user_id are rejected by the backend
+    /// This is the key v2.0.0 test - backend should reject user_id field
+    func testEventWithUserId_Returns400() async throws {
+        let testName = "testUserIdRejected"
         
-        // Build event with user_id
+        // Build event with user_id (should be rejected)
         var event = buildTestEvent(name: "sdk_test_with_user", screen: "UserScreen")
         event["user_id"] = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
         
         // Send to API
-        let (statusCode, _) = try await sendEvent(event)
+        let (statusCode, body) = try await sendEvent(event)
         
-        // Verify 201 Created
-        if statusCode == 201 {
-            recordResult(testName, passed: true, detail: "201 Created (event includes user_id)")
-            XCTAssertEqual(statusCode, 201)
+        // Verify 400 Bad Request - user_id is no longer accepted
+        if statusCode == 400 {
+            recordResult(testName, passed: true, detail: "400 Bad Request (user_id rejected as expected)")
+            XCTAssertEqual(statusCode, 400)
+            // Verify error message mentions user_id
+            if let responseBody = body {
+                XCTAssertTrue(responseBody.contains("user_id") || responseBody.contains("not allowed"),
+                            "Error response should mention user_id is not allowed")
+            }
         } else {
-            recordResult(testName, passed: false, detail: "Expected 201, got \(statusCode)")
-            XCTFail("Expected 201 Created, got \(statusCode)")
+            recordResult(testName, passed: false, detail: "Expected 400 (user_id rejected), got \(statusCode)")
+            XCTFail("Expected 400 Bad Request for user_id field, got \(statusCode). Body: \(body ?? "nil")")
         }
     }
     
@@ -194,10 +193,11 @@ final class IntegrationTests: XCTestCase {
             "session_id": UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased(),
             "platform": "iOS",
             "os_version": "17.0",
-            "app_version": "1.0.0",
+            "app_version": "2.0.0",
             "locale": "en_US",
             "device_type": "phone"
         ]
+        // Note: user_id is NOT included - v2.0.0 session-based analytics
         
         if let screen = screen {
             event["screen"] = screen

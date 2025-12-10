@@ -11,38 +11,36 @@ import UIKit
 #endif
 
 /// Represents an analytics event.
-/// 
+///
 /// This struct only contains fields that are accepted by the Respectlytics API.
 /// The API uses a strict allowlist for privacy protection:
 /// - event_name (required)
-/// - timestamp, session_id, user_id, screen
+/// - timestamp, session_id, screen
 /// - platform, os_version, app_version, locale, device_type
 ///
-/// Custom properties are NOT supported - this is by design for privacy.
+/// Note: user_id is NOT supported. Respectlytics uses session-based analytics only
+/// for GDPR/ePrivacy compliance. Each session is independent and anonymous.
 struct Event: Codable {
     let eventName: String
     let timestamp: String
     let sessionId: String
-    let userId: String?
     let screen: String?
     let metadata: EventMetadata
     
     /// Convenience initializer with common parameters
-    init(name: String, screen: String?, userId: String?, sessionId: String) {
+    init(name: String, screen: String?, sessionId: String) {
         self.eventName = name
         self.timestamp = ISO8601DateFormatter().string(from: Date())
         self.sessionId = sessionId
-        self.userId = userId
         self.screen = screen
         self.metadata = EventMetadata.current()
     }
     
     /// Full initializer
-    init(eventName: String, timestamp: String, sessionId: String, userId: String?, screen: String?, metadata: EventMetadata) {
+    init(eventName: String, timestamp: String, sessionId: String, screen: String?, metadata: EventMetadata) {
         self.eventName = eventName
         self.timestamp = timestamp
         self.sessionId = sessionId
-        self.userId = userId
         self.screen = screen
         self.metadata = metadata
     }
@@ -51,7 +49,6 @@ struct Event: Codable {
         case eventName = "event_name"
         case timestamp
         case sessionId = "session_id"
-        case userId = "user_id"
         case screen
         case platform
         case osVersion = "os_version"
@@ -65,7 +62,6 @@ struct Event: Codable {
         eventName = try container.decode(String.self, forKey: .eventName)
         timestamp = try container.decode(String.self, forKey: .timestamp)
         sessionId = try container.decode(String.self, forKey: .sessionId)
-        userId = try container.decodeIfPresent(String.self, forKey: .userId)
         screen = try container.decodeIfPresent(String.self, forKey: .screen)
         
         // Decode metadata from flattened fields
@@ -82,7 +78,6 @@ struct Event: Codable {
         try container.encode(eventName, forKey: .eventName)
         try container.encode(timestamp, forKey: .timestamp)
         try container.encode(sessionId, forKey: .sessionId)
-        try container.encodeIfPresent(userId, forKey: .userId)
         try container.encodeIfPresent(screen, forKey: .screen)
         // Flatten metadata into the event
         try container.encode(metadata.platform, forKey: .platform)

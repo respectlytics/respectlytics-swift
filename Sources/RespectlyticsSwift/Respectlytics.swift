@@ -12,19 +12,24 @@
 import Foundation
 
 /// Main entry point for the Respectlytics SDK.
-/// 
+///
 /// Usage:
 /// ```swift
 /// // 1. Configure at app launch
 /// Respectlytics.configure(apiKey: "your-api-key")
-/// 
-/// // 2. Enable user tracking (optional)
-/// Respectlytics.identify()
-/// 
-/// // 3. Track events
+///
+/// // 2. Track events
 /// Respectlytics.track("purchase")
 /// Respectlytics.track("view_product", screen: "ProductDetail")
 /// ```
+///
+/// ## 🔄 Automatic Session Management
+///
+/// Session IDs are managed entirely by the SDK - no configuration needed:
+/// - **New session on app launch**: Every time your app starts, a fresh session begins
+/// - **2-hour rotation**: Sessions automatically rotate after 2 hours of use
+/// - **RAM-only storage**: Session IDs are never written to disk (GDPR/ePrivacy compliant)
+/// - **No cross-session tracking**: Each session is independent and anonymous
 public final class Respectlytics {
     
     // MARK: - Singleton
@@ -35,7 +40,6 @@ public final class Respectlytics {
     
     private var configuration: Configuration?
     private let sessionManager = SessionManager()
-    private let userManager = UserManager()
     private let eventQueue: EventQueue
     private let networkClient: NetworkClient
     
@@ -65,7 +69,7 @@ public final class Respectlytics {
             shared.networkClient.configure(apiKey: apiKey)
             shared.eventQueue.start()
             
-            print("[Respectlytics] ✓ SDK configured")
+            print("[Respectlytics] ✓ SDK configured (session-based analytics)")
         }
     }
     
@@ -98,32 +102,11 @@ public final class Respectlytics {
                 eventName: eventName,
                 timestamp: ISO8601DateFormatter().string(from: Date()),
                 sessionId: shared.sessionManager.getSessionId(),
-                userId: shared.userManager.userId,
                 screen: screen,
                 metadata: EventMetadata.current()
             )
             
             shared.eventQueue.add(event)
-        }
-    }
-    
-    /// Enable cross-session user tracking.
-    /// Generates and persists a random user ID that will be included in all subsequent events.
-    ///
-    /// - Note: User IDs are auto-generated and cannot be overridden. This is by design for privacy.
-    public static func identify() {
-        shared.queue.async {
-            shared.userManager.identify()
-            print("[Respectlytics] ✓ User identified")
-        }
-    }
-    
-    /// Clear the user ID.
-    /// Call when the user logs out. Subsequent events will be anonymous until `identify()` is called again.
-    public static func reset() {
-        shared.queue.async {
-            shared.userManager.reset()
-            print("[Respectlytics] ✓ User reset")
         }
     }
     

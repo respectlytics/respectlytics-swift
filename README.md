@@ -4,6 +4,7 @@ Official Respectlytics SDK for iOS and macOS. Privacy-first analytics with autom
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/platform-iOS%2015%2B%20%7C%20macOS%2012%2B-lightgrey.svg)](https://developer.apple.com)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/2.0.0)
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
 
 ## Installation
@@ -15,12 +16,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `1.0.2` or later
+3. Select version: `2.0.0` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "1.0.2")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "2.0.0")
 ]
 ```
 
@@ -40,10 +41,7 @@ import RespectlyticsSwift
 // 1. Configure at app launch (AppDelegate or @main App init)
 Respectlytics.configure(apiKey: "your-api-key")
 
-// 2. Enable cross-session user tracking (optional)
-Respectlytics.identify()
-
-// 3. Track events
+// 2. Track events
 Respectlytics.track("purchase")
 Respectlytics.track("view_product", screen: "ProductDetail")
 ```
@@ -88,35 +86,12 @@ Respectlytics.track("checkout_started", screen: "CartScreen")
 
 **Automatic metadata collected:**
 - `timestamp` - ISO 8601 format
-- `session_id` - Auto-generated, rotates after 30 min inactivity
+- `session_id` - Auto-generated, rotates after 2 hours
 - `platform` - "iOS" or "macOS"
 - `os_version` - e.g., "17.1"
 - `app_version` - From your app's bundle
 - `locale` - e.g., "en_US"
 - `device_type` - "phone", "tablet", or "desktop"
-
-### `identify()`
-
-Enable cross-session user tracking. Generates and persists a random user ID that will be included in all subsequent events.
-
-```swift
-Respectlytics.identify()
-```
-
-**Privacy notes:**
-- User IDs are auto-generated random UUIDs
-- Cannot be overridden with custom IDs (privacy by design)
-- Stored in Keychain (persists across app updates, cleared on uninstall)
-
-### `reset()`
-
-Clear the user ID. Call when the user logs out.
-
-```swift
-Respectlytics.reset()
-```
-
-After reset, subsequent events will be anonymous until `identify()` is called again.
 
 ### `flush()`
 
@@ -126,13 +101,24 @@ Force send all queued events immediately. Rarely needed - the SDK auto-flushes e
 Respectlytics.flush()
 ```
 
+## 🔄 Automatic Session Management
+
+Session IDs are managed entirely by the SDK - no configuration needed.
+
+- **New session on app launch**: Every time your app starts, a fresh session begins
+- **2-hour rotation**: Sessions automatically rotate after 2 hours of continuous use
+- **RAM-only storage**: Session IDs are never written to disk (GDPR/ePrivacy compliant)
+- **No cross-session tracking**: Each session is independent and anonymous
+
+This design ensures full compliance with GDPR and the ePrivacy Directive without requiring user consent for analytics.
+
 ## Automatic Behaviors
 
 The SDK handles these automatically - no developer action needed:
 
 | Feature | Behavior |
 |---------|----------|
-| **Session Management** | New session ID generated on first event, rotates after 30 min inactivity |
+| **Session Management** | New session ID on app launch, rotates after 2 hours |
 | **Event Batching** | Events queued and sent in batches (max 10 events or 30 seconds) |
 | **Offline Support** | Events queued when offline, sent when connectivity returns |
 | **Retry Logic** | Failed requests retry with exponential backoff (max 3 attempts) |
@@ -146,13 +132,13 @@ The SDK handles these automatically - no developer action needed:
 | Device fingerprints | Can be used to identify users without consent |
 | IP addresses | Used only for geolocation lookup, then discarded |
 | Custom properties | Prevents accidental PII collection |
+| Persistent user IDs | Cross-session tracking requires consent |
 
 | What we DO collect | Purpose |
 |-------------------|---------|
 | Event name | Analytics |
 | Screen name | Navigation analytics |
-| Random session ID | Group events in a session |
-| Random user ID (opt-in) | Cross-session analytics |
+| Session ID (ephemeral, 2-hour rotation) | Group events within a session |
 | Platform, OS version | Debugging |
 | App version | Debugging |
 
@@ -160,10 +146,29 @@ The SDK handles these automatically - no developer action needed:
 
 Respectlytics uses a strict allowlist to ensure only privacy-safe data can be collected. The API rejects any fields not on this list. This prevents accidental collection of sensitive user data and ensures compliance with privacy regulations.
 
-### User ID Privacy
-- User IDs are random UUIDs, not derived from device identifiers
-- Cannot be overridden by developers (prevents linking to auth systems)
-- Uninstalling the app clears the user ID completely
+### Session-Based Analytics
+
+Respectlytics v2.0.0 uses **session-based analytics only**:
+- Each session is independent and anonymous
+- Sessions are generated fresh on every app launch
+- No persistent identifiers are stored on device
+- No consent required under ePrivacy Directive Article 5(3)
+
+## Migration from v1.x
+
+### Breaking Changes
+- `identify()` method **removed** - no longer needed
+- `reset()` method **removed** - no longer needed
+- Keychain storage **removed** - sessions are RAM-only
+
+### What to do
+1. Remove any calls to `Respectlytics.identify()`
+2. Remove any calls to `Respectlytics.reset()`
+3. That's it! Session management is now automatic.
+
+### Why This Change?
+
+Storing identifiers on device (Keychain/UserDefaults) requires user consent under ePrivacy Directive Article 5(3). In-memory sessions require no consent, making Respectlytics truly consent-free analytics.
 
 ## Requirements
 
@@ -187,11 +192,6 @@ See the [example](example/) directory for a complete sample implementation.
 ### "SDK not configured" warning
 
 Make sure to call `Respectlytics.configure(apiKey:)` before any other SDK methods.
-
-### User ID not persisting
-
-- Check that Keychain access is working on your device
-- On simulator, Keychain behavior may differ from physical devices
 
 ## License
 

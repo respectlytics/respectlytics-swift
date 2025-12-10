@@ -10,16 +10,6 @@ import XCTest
 
 final class RespectlyticsSwiftTests: XCTestCase {
     
-    override func setUp() {
-        super.setUp()
-        Respectlytics.reset()
-    }
-    
-    override func tearDown() {
-        Respectlytics.reset()
-        super.tearDown()
-    }
-    
     // MARK: - Configuration Tests
     
     func testConfigure() {
@@ -35,13 +25,11 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let event = Event(
             name: "test_event",
             screen: "TestScreen",
-            userId: "user123",
             sessionId: "session456"
         )
         
         XCTAssertEqual(event.eventName, "test_event")
         XCTAssertEqual(event.screen, "TestScreen")
-        XCTAssertEqual(event.userId, "user123")
         XCTAssertEqual(event.sessionId, "session456")
         XCTAssertFalse(event.timestamp.isEmpty)
     }
@@ -50,7 +38,6 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let event = Event(
             name: "test_event",
             screen: "HomeScreen",
-            userId: "user123",
             sessionId: "session456"
         )
         
@@ -62,7 +49,6 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let decoder = JSONDecoder()
         let decoded = try decoder.decode(Event.self, from: data)
         XCTAssertEqual(decoded.eventName, event.eventName)
-        XCTAssertEqual(decoded.userId, event.userId)
         XCTAssertEqual(decoded.screen, event.screen)
     }
     
@@ -70,7 +56,6 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let event = Event(
             name: "simple_event",
             screen: nil,
-            userId: nil,
             sessionId: "session789"
         )
         
@@ -81,7 +66,6 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let decoder = JSONDecoder()
         let decoded = try decoder.decode(Event.self, from: data)
         XCTAssertEqual(decoded.eventName, "simple_event")
-        XCTAssertNil(decoded.userId)
         XCTAssertNil(decoded.screen)
     }
     
@@ -89,7 +73,6 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let event = Event(
             name: "test_event",
             screen: "ProductPage",
-            userId: "abc123",
             sessionId: "session456"
         )
         
@@ -101,13 +84,15 @@ final class RespectlyticsSwiftTests: XCTestCase {
         XCTAssertNotNil(json["event_name"])
         XCTAssertNotNil(json["timestamp"])
         XCTAssertNotNil(json["session_id"])
-        XCTAssertNotNil(json["user_id"])
         XCTAssertNotNil(json["screen"])
         XCTAssertNotNil(json["platform"])
         XCTAssertNotNil(json["os_version"])
         XCTAssertNotNil(json["app_version"])
         XCTAssertNotNil(json["locale"])
         XCTAssertNotNil(json["device_type"])
+        
+        // user_id should NOT be present (v2.0.0 - session-based only)
+        XCTAssertNil(json["user_id"], "user_id should not be in event payload - v2.0.0 uses session-based analytics only")
         
         // These fields should NOT be present (privacy violation)
         XCTAssertNil(json["properties"])
@@ -117,6 +102,22 @@ final class RespectlyticsSwiftTests: XCTestCase {
         XCTAssertNil(json["extra"])
     }
     
+    func testEventDoesNotIncludeUserId() throws {
+        // Critical test: Verify user_id is never sent
+        let event = Event(
+            name: "test_event",
+            screen: nil,
+            sessionId: "abc123"
+        )
+        
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(event)
+        let jsonString = String(data: data, encoding: .utf8)!
+        
+        // user_id should not appear anywhere in the JSON
+        XCTAssertFalse(jsonString.contains("user_id"), "Event payload must not contain user_id field")
+    }
+    
     // MARK: - Session Manager Tests
     
     func testSessionManagerGeneratesSessionId() {
@@ -124,7 +125,20 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let sessionId = sessionManager.getSessionId()
         
         XCTAssertFalse(sessionId.isEmpty)
-        XCTAssertEqual(sessionId.count, 32) // UUID without dashes, lowercased
+        XCTAssertEqual(sessionId.count, 32, "Session ID must be exactly 32 lowercase hex characters")
+    }
+    
+    func testSessionManagerSessionIdFormat() {
+        let sessionManager = SessionManager()
+        let sessionId = sessionManager.getSessionId()
+        
+        // Must be 32 lowercase hex characters
+        let hexPattern = "^[0-9a-f]{32}$"
+        let regex = try! NSRegularExpression(pattern: hexPattern)
+        let range = NSRange(sessionId.startIndex..., in: sessionId)
+        let match = regex.firstMatch(in: sessionId, range: range)
+        
+        XCTAssertNotNil(match, "Session ID must be exactly 32 lowercase hex characters")
     }
     
     func testSessionManagerMaintainsSameSession() {
@@ -132,33 +146,41 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let sessionId1 = sessionManager.getSessionId()
         let sessionId2 = sessionManager.getSessionId()
         
-        XCTAssertEqual(sessionId1, sessionId2)
+        XCTAssertEqual(sessionId1, sessionId2, "Session ID should remain stable within the 2-hour window")
     }
     
-    // MARK: - User Manager Tests
-    
-    func testUserManagerStartsWithNoUser() {
-        let userManager = UserManager()
-        // After a reset, userId should be nil (or it might have a stored value from keychain)
-        // This test is more about the structure existing
-        XCTAssertNotNil(userManager)
-    }
-    
-    func testUserManagerIdentify() {
-        let userManager = UserManager()
-        userManager.identify()
+    func testSessionManagerNewInstanceNewSession() {
+        // Each SessionManager instance should have its own session
+        // This simulates app restart behavior (RAM-only storage)
+        let sessionManager1 = SessionManager()
+        let sessionManager2 = SessionManager()
         
-        XCTAssertNotNil(userManager.userId)
-        XCTAssertEqual(userManager.userId?.count, 32) // UUID without dashes
+        let sessionId1 = sessionManager1.getSessionId()
+        let sessionId2 = sessionManager2.getSessionId()
+        
+        XCTAssertNotEqual(sessionId1, sessionId2, "New SessionManager instance should have a new session ID (RAM-only)")
     }
     
-    func testUserManagerReset() {
-        let userManager = UserManager()
-        userManager.identify()
-        XCTAssertNotNil(userManager.userId)
+    // MARK: - v2.0.0 Breaking Changes Tests
+    
+    func testIdentifyMethodDoesNotExist() {
+        // Verify identify() method has been removed
+        // This is a compile-time check - if this compiles, identify() doesn't exist
+        let mirror = Mirror(reflecting: Respectlytics.self)
+        let methods = mirror.children.compactMap { $0.label }
         
-        userManager.reset()
-        XCTAssertNil(userManager.userId)
+        // The method should not exist on the type
+        XCTAssertFalse(methods.contains("identify"), "identify() method should not exist in v2.0.0")
+    }
+    
+    func testResetMethodDoesNotExist() {
+        // Verify reset() method has been removed
+        // This is a compile-time check - if this compiles, reset() doesn't exist
+        let mirror = Mirror(reflecting: Respectlytics.self)
+        let methods = mirror.children.compactMap { $0.label }
+        
+        // The method should not exist on the type
+        XCTAssertFalse(methods.contains("reset"), "reset() method should not exist in v2.0.0")
     }
     
     // MARK: - Configuration Model Tests
@@ -183,15 +205,9 @@ final class RespectlyticsSwiftTests: XCTestCase {
         // Configure SDK
         Respectlytics.configure(apiKey: "test-api-key")
         
-        // Enable user tracking
-        Respectlytics.identify()
-        
-        // Track events (no properties - API doesn't support them)
+        // Track events (no identify() needed in v2.0.0)
         Respectlytics.track("test_event")
         Respectlytics.track("view_product", screen: "ProductDetail")
-        
-        // Reset user
-        Respectlytics.reset()
         
         // Should complete without crash
         XCTAssertTrue(true)
