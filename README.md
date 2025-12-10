@@ -107,7 +107,7 @@ Session IDs are managed entirely by the SDK - no configuration needed.
 
 - **New session on app launch**: Every time your app starts, a fresh session begins
 - **2-hour rotation**: Sessions automatically rotate after 2 hours of continuous use
-- **RAM-only storage**: Session IDs are never written to disk (GDPR/ePrivacy compliant)
+- **RAM-only storage**: Session IDs are never written to disk (designed for GDPR/ePrivacy compliance)
 - **No cross-session tracking**: Each session is independent and anonymous
 
 ## Automatic Behaviors
