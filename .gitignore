@@ -29,12 +29,31 @@ DerivedData/
 Package.resolved
 
 # ------------------------------------------
-# Secrets (NEVER commit these)
+# Secrets & Environment Variables (SECURITY CRITICAL)
 # ------------------------------------------
 .env
-.env.testing
-.env.local
-.env.production
-
-# Keep the example template
+.env.*
 !.env.testing.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+**/credentials.json
+**/secrets.json
+secrets/
+.secrets/
+
+# ------------------------------------------
+# IDE
+# ------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ------------------------------------------
+# Security Tools
+# ------------------------------------------
+.gitleaks.toml
