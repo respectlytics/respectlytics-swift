@@ -4,7 +4,7 @@ Official Respectlytics SDK for iOS and macOS. Privacy-first analytics with autom
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/platform-iOS%2015%2B%20%7C%20macOS%2012%2B-lightgrey.svg)](https://developer.apple.com)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/2.0.0)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/2.1.0)
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
 
 ## Installation
@@ -16,12 +16,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `2.0.0` or later
+3. Select version: `2.1.0` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "2.0.0")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "2.1.0")
 ]
 ```
 
@@ -43,7 +43,6 @@ Respectlytics.configure(apiKey: "your-api-key")
 
 // 2. Track events
 Respectlytics.track("purchase")
-Respectlytics.track("view_product", screen: "ProductDetail")
 ```
 
 That's it! The SDK handles batching, offline queue, session management, and automatic retries.
@@ -71,27 +70,20 @@ struct MyApp: App {
 }
 ```
 
-### `track(_:screen:)`
+### `track(_:)`
 
-Track an event with an optional screen name.
+Track an event. Custom properties are not supported (privacy by design).
 
 ```swift
-// Simple event
 Respectlytics.track("button_clicked")
-
-// Event with screen context
-Respectlytics.track("add_to_cart", screen: "ProductDetail")
-Respectlytics.track("checkout_started", screen: "CartScreen")
+Respectlytics.track("add_to_cart")
+Respectlytics.track("checkout_started")
 ```
 
 **Automatic metadata collected:**
 - `timestamp` - ISO 8601 format
-- `session_id` - Auto-generated, rotates after 2 hours
+- `session_id` - RAM-only, rotates after 2 hours
 - `platform` - "iOS" or "macOS"
-- `os_version` - e.g., "17.1"
-- `app_version` - From your app's bundle
-- `locale` - e.g., "en_US"
-- `device_type` - "phone", "tablet", or "desktop"
 
 ### `flush()`
 
@@ -107,8 +99,8 @@ Session IDs are managed entirely by the SDK - no configuration needed.
 
 - **New session on app launch**: Every time your app starts, a fresh session begins
 - **2-hour rotation**: Sessions automatically rotate after 2 hours of continuous use
-- **RAM-only storage**: Session IDs are never written to disk (designed for GDPR/ePrivacy compliance)
-- **No cross-session tracking**: Each session is independent and anonymous
+- **RAM-only storage**: Session IDs are never written to disk
+- **No cross-session tracking**: Each session is independent
 
 ## Automatic Behaviors
 
@@ -122,57 +114,74 @@ The SDK handles these automatically - no developer action needed:
 | **Retry Logic** | Failed requests retry with exponential backoff (max 3 attempts) |
 | **Background Sync** | Events flushed when app enters background |
 
-## Privacy by Design
+## 🛡️ Privacy by Design
 
-Respectlytics is designed to minimize data collection by default. We use anonymized identifiers that are stored only in device memory (RAM) and rotate automatically every two hours or upon app restart. IP addresses are processed transiently for approximate region lookup and immediately discarded—no personal data is ever persisted server-side.
+Respectlytics helps developers **avoid collecting personal data** in the first place. Our motto is **Return of Avoidance (ROA)** — the best way to protect sensitive data is to never collect it.
 
-This privacy-by-design architecture avoids persistent device storage and cross-session tracking, significantly reducing compliance complexity compared to traditional analytics. While this approach may reduce or eliminate consent requirements in some jurisdictions, regulations and their interpretation vary. We recommend consulting with your legal team to determine your specific compliance requirements.
+### What We Store (4 fields only)
 
-| What we DON'T collect | Why |
-|----------------------|-----|
-| IDFA / GAID | Device advertising IDs can track users across apps |
-| Device fingerprints | Can be used to identify users without consent |
-| IP addresses | Processed transiently for country/region lookup, then immediately discarded |
-| Custom properties | Prevents accidental PII collection |
-| Persistent user IDs | Cross-session tracking requires consent |
+| Field | Purpose |
+|-------|---------|
+| `event_name` | The action being tracked |
+| `timestamp` | When it happened |
+| `session_id` | Groups events in a session (RAM-only, 2-hour rotation, hashed server-side) |
+| `platform` | iOS, macOS |
 
-| What we DO collect | Purpose |
-|-------------------|---------|
-| Event name | Analytics |
-| Screen name | Navigation analytics |
-| Session ID (RAM-only, 2-hour rotation) | Group events within a session |
-| Platform, OS version | Debugging |
-| App version | Debugging |
+Country is derived server-side from IP address, then the IP is immediately discarded.
 
-### Why No Custom Properties?
+### What We DON'T Collect
 
-Respectlytics uses a strict allowlist to ensure only privacy-safe data can be collected. The API rejects any fields not on this list. This prevents accidental collection of sensitive user data and ensures compliance with privacy regulations.
+| Data | Why Not |
+|------|---------|
+| IDFA / IDFV | Device identifiers enable cross-app tracking |
+| IP addresses | Processed transiently for country lookup, never stored |
+| Device fingerprints | Can be used to identify individuals |
+| Custom properties | API rejects extra fields to prevent accidental PII |
+| Persistent user IDs | No cross-session tracking by design |
 
-## Migration from v1.x
+### Privacy Architecture
 
-### Breaking Changes
+- **RAM-only sessions**: Session IDs exist only in device memory, never written to disk
+- **2-hour rotation**: Sessions automatically expire and regenerate
+- **New session on restart**: Each app launch starts a fresh session
+- **Server-side hashing**: Session IDs are hashed with daily-rotating salt before storage
+- **Strict allowlist**: API rejects any fields not on the 4-field allowlist
+- **Open source SDKs**: Full transparency into what data is collected
+
+This architecture is designed to be **transparent** (you know exactly what's collected), **defensible** (minimal data surface), and **clear** (explicit reasoning for each field).
+
+Consult your legal team to determine your specific compliance requirements.
+
+## Migration Guide
+
+### From v2.0.x to v2.1.0
+
+**Breaking Change:** The `screen` parameter has been removed from `track()`.
+
+```diff
+- Respectlytics.track("view_product", screen: "ProductDetail")
++ Respectlytics.track("view_product")
+```
+
+If you need screen context, include it in your event name (e.g., `product_detail_view_product`).
+
+### From v1.x to v2.x
+
+**Breaking Changes:**
 - `identify()` method **removed** - no longer needed
 - `reset()` method **removed** - no longer needed
 - Keychain storage **removed** - sessions are RAM-only
 
-### What to do
+**What to do:**
 1. Remove any calls to `Respectlytics.identify()`
 2. Remove any calls to `Respectlytics.reset()`
 3. That's it! Session management is now automatic.
-
-### Why This Change?
-
-Storing identifiers on device (Keychain/UserDefaults) requires user consent under ePrivacy Directive Article 5(3). In-memory sessions require no consent, making Respectlytics truly consent-free analytics.
 
 ## Requirements
 
 - iOS 15.0+ / macOS 12.0+
 - Swift 5.9+
 - Xcode 15.0+
-
-## Example App
-
-See the [example](example/) directory for a complete sample implementation.
 
 ## Troubleshooting
 

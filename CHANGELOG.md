@@ -5,11 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-12-26
+
+### ⚠️ Breaking Changes
+- **REMOVED**: `screen` parameter from `track()` method
+- **REMOVED**: `os_version`, `app_version`, `locale`, `device_type` from event payload
+
+### Changed
+- Event payload now contains only 4 fields: `event_name`, `timestamp`, `session_id`, `platform`
+- Simplified Event model (removed EventMetadata struct)
+- Updated privacy documentation to emphasize Return of Avoidance (ROA) approach
+
+### Why This Change?
+The API now uses a strict 4-field allowlist. Additional fields are silently ignored for backwards
+compatibility but never stored. This minimizes data collection and strengthens privacy guarantees.
+
+### Migration
+Remove the `screen` parameter from any `track()` calls:
+
+```swift
+// Before (v2.0.x)
+Respectlytics.track("view_product", screen: "ProductDetail")
+
+// After (v2.1.0)
+Respectlytics.track("view_product")
+```
+
+If you need screen context, include it in the event name: `product_detail_view_product`
+
+---
+
 ## [2.0.0] - 2025-12-10
 
 ### ⚠️ Breaking Changes
-- **REMOVED**: `identify()` method (GDPR/ePrivacy compliance)
-- **REMOVED**: `reset()` method (no longer needed)
+- **REMOVED**: `identify()` method
+- **REMOVED**: `reset()` method
 - **REMOVED**: Keychain storage for user IDs
 - **REMOVED**: `UserManager` class entirely
 
@@ -19,11 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Session timeout changed from 30 minutes to 2 hours
 - Sessions rotate automatically every 2 hours of continuous use
 - Event payloads no longer include `user_id` field
-
-### Why This Change?
-Storing identifiers on device (Keychain/UserDefaults) requires user consent under 
-ePrivacy Directive Article 5(3). In-memory sessions require no consent, making 
-Respectlytics truly consent-free analytics.
 
 ### Migration
 Remove any calls to `identify()` and `reset()`. Session management is now automatic.
