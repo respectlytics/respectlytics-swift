@@ -4,8 +4,8 @@ Official Respectlytics SDK for iOS and macOS. Privacy-first analytics with autom
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/platform-iOS%2015%2B%20%7C%20macOS%2012%2B-lightgrey.svg)](https://developer.apple.com)
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/2.1.0)
-[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/2.2.0)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Installation
 
@@ -16,12 +16,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `2.1.0` or later
+3. Select version: `2.2.0` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "2.1.0")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "2.2.0")
 ]
 ```
 
@@ -43,13 +43,19 @@ Respectlytics.configure(apiKey: "your-api-key")
 
 // 2. Track events
 Respectlytics.track("purchase")
+
+// For self-hosted instances:
+Respectlytics.configure(
+    apiKey: "your-api-key",
+    apiEndpoint: URL(string: "https://your-server.com/api/v1/events/")!
+)
 ```
 
 That's it! The SDK handles batching, offline queue, session management, and automatic retries.
 
 ## API Reference
 
-### `configure(apiKey:)`
+### `configure(apiKey:apiEndpoint:)`
 
 Initialize the SDK with your API key. Call once at app launch.
 
@@ -68,7 +74,18 @@ struct MyApp: App {
     }
     // ...
 }
+
+// For self-hosted instances
+Respectlytics.configure(
+    apiKey: "your-api-key",
+    apiEndpoint: URL(string: "https://your-server.com/api/v1/events/")!
+)
 ```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `apiKey` | `String` | Yes | Your Respectlytics API key |
+| `apiEndpoint` | `URL?` | No | Custom endpoint for self-hosted instances |
 
 ### `track(_:)`
 
@@ -118,7 +135,7 @@ The SDK handles these automatically - no developer action needed:
 
 Respectlytics helps developers **avoid collecting personal data** in the first place. Our motto is **Return of Avoidance (ROA)** — the best way to protect sensitive data is to never collect it.
 
-### What We Store (4 fields only)
+### What We Store (5 fields)
 
 | Field | Purpose |
 |-------|---------|
@@ -126,8 +143,7 @@ Respectlytics helps developers **avoid collecting personal data** in the first p
 | `timestamp` | When it happened |
 | `session_id` | Groups events in a session (RAM-only, 2-hour rotation, hashed server-side) |
 | `platform` | iOS, macOS |
-
-Country is derived server-side from IP address, then the IP is immediately discarded.
+| `country` | Derived server-side from IP (IP immediately discarded, never stored) |
 
 ### What We DON'T Collect
 
@@ -145,7 +161,7 @@ Country is derived server-side from IP address, then the IP is immediately disca
 - **2-hour rotation**: Sessions automatically expire and regenerate
 - **New session on restart**: Each app launch starts a fresh session
 - **Server-side hashing**: Session IDs are hashed with daily-rotating salt before storage
-- **Strict allowlist**: API rejects any fields not on the 4-field allowlist
+- **Strict allowlist**: API rejects any fields not on the 5-field allowlist
 - **Open source SDKs**: Full transparency into what data is collected
 
 This architecture is designed to be **transparent** (you know exactly what's collected), **defensible** (minimal data surface), and **clear** (explicit reasoning for each field).
@@ -198,17 +214,7 @@ Make sure to call `Respectlytics.configure(apiKey:)` before any other SDK method
 
 ## License
 
-This SDK is provided under a proprietary license. See the [LICENSE](LICENSE) file for details.
-
-**Permitted:**
-- View source code for transparency and security review
-- Install via Swift Package Manager
-- Use with official Respectlytics service
-
-**Prohibited:**
-- Copying, forking, or redistributing source code
-- Modifying the SDK
-- Using with non-Respectlytics backends
+This SDK is licensed under the [MIT License](LICENSE).
 
 ## Support
 

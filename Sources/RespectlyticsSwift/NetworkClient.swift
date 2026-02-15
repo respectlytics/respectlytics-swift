@@ -2,59 +2,62 @@
 //  NetworkClient.swift
 //  RespectlyticsSwift
 //
-//  Copyright (c) 2025 Respectlytics. All rights reserved.
+//  Copyright (c) 2025 Respectlytics. Licensed under MIT.
 //
 
 import Foundation
 
 /// Handles HTTP communication with the Respectlytics API
 final class NetworkClient {
-    
+
     private var apiKey: String?
-    private let apiEndpoint = URL(string: "https://respectlytics.com/api/v1/events/")!
+    private var apiEndpoint: URL = URL(string: "https://respectlytics.com/api/v1/events/")!
     private let session: URLSession
     private let encoder = JSONEncoder()
-    
+
     private let maxRetries = 3
     private let timeout: TimeInterval = 30
-    
+
     init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = timeout
         self.session = URLSession(configuration: config)
     }
-    
-    func configure(apiKey: String) {
+
+    func configure(apiKey: String, apiEndpoint: URL? = nil) {
         self.apiKey = apiKey
+        if let apiEndpoint = apiEndpoint {
+            self.apiEndpoint = apiEndpoint
+        }
     }
-    
+
     /// Send events to the API
     func send(events: [Event]) async throws {
         guard let apiKey = apiKey else {
             throw NetworkError.notConfigured
         }
-        
+
         for event in events {
             try await sendEvent(event, apiKey: apiKey, attempt: 1)
         }
     }
-    
+
     private func sendEvent(_ event: Event, apiKey: String, attempt: Int) async throws {
         var request = URLRequest(url: apiEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "X-App-Key")
-        
+
         request.httpBody = try encoder.encode(event)
-        
+
         do {
             let (_, response) = try await session.data(for: request)
-            
+
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw NetworkError.invalidResponse
             }
-            
+
             switch httpResponse.statusCode {
             case 200...299:
                 return // Success

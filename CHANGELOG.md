@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-02-15
+
+### Added
+- **Self-hosted support**: `configure(apiKey:apiEndpoint:)` now accepts an optional `apiEndpoint` parameter for self-hosted Respectlytics instances
+- MIT license — the SDK is now fully open source
+
+### Fixed
+- **Critical bug**: `NetworkClient` had a hardcoded API URL that ignored the `Configuration.apiEndpoint` setting. Custom endpoints now work correctly.
+- Updated field count documentation from "4 fields" to "5 fields stored" (includes server-derived `country`)
+- Replaced regulatory compliance claim with factual technical description in `SessionManager`
+- Fixed default test server port from 8000 to 8080
+
+### Changed
+- License changed from proprietary to MIT
+- All copyright headers updated to reflect MIT license
+- Cleaned up integration tests to remove deprecated fields (`os_version`, `app_version`, `locale`, `device_type`, `screen`)
+- README updated with self-hosted documentation, correct field count, and MIT license
+
+### Migration
+No breaking changes. The new `apiEndpoint` parameter is optional and defaults to the Respectlytics Cloud endpoint.
+
+```swift
+// Existing code continues to work as-is:
+Respectlytics.configure(apiKey: "your-api-key")
+
+// New: self-hosted instances
+Respectlytics.configure(
+    apiKey: "your-api-key",
+    apiEndpoint: URL(string: "https://your-server.com/api/v1/events/")!
+)
+```
+
+---
+
 ## [2.1.0] - 2025-12-26
 
 ### ⚠️ Breaking Changes

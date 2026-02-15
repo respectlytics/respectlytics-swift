@@ -2,7 +2,7 @@
 //  EventQueue.swift
 //  RespectlyticsSwift
 //
-//  Copyright (c) 2025 Respectlytics. All rights reserved.
+//  Copyright (c) 2025 Respectlytics. Licensed under MIT.
 //
 
 import Foundation
@@ -13,36 +13,36 @@ import Network
 
 /// Manages event batching, persistence, and automatic flushing
 final class EventQueue {
-    
+
     private var events: [Event] = []
     private var flushTimer: Timer?
     private let networkClient: NetworkClient
     private let networkMonitor = NWPathMonitor()
     private var isOnline = true
-    
+
     private let maxQueueSize = 10
     private let flushInterval: TimeInterval = 30
     private let persistenceKey = "com.respectlytics.eventQueue"
-    
+
     private let lock = NSLock()
     private let queue = DispatchQueue(label: "com.respectlytics.eventQueue")
-    
+
     init(networkClient: NetworkClient) {
         self.networkClient = networkClient
         loadPersistedQueue()
         setupNetworkMonitor()
         setupBackgroundObserver()
     }
-    
+
     deinit {
         flushTimer?.invalidate()
         networkMonitor.cancel()
     }
-    
+
     func start() {
         scheduleFlush()
     }
-    
+
     /// Add an event to the queue
     func add(_ event: Event) {
         lock.lock()
@@ -50,12 +50,12 @@ final class EventQueue {
         persistQueue()
         let shouldFlush = events.count >= maxQueueSize
         lock.unlock()
-        
+
         if shouldFlush {
             flush()
         }
     }
-    
+
     /// Force flush all queued events
     func flush() {
         lock.lock()
@@ -63,17 +63,17 @@ final class EventQueue {
             lock.unlock()
             return
         }
-        
+
         guard isOnline else {
             lock.unlock()
             return
         }
-        
+
         let batch = events
         events = []
         persistQueue()
         lock.unlock()
-        
+
         Task {
             do {
                 try await networkClient.send(events: batch)
@@ -87,9 +87,9 @@ final class EventQueue {
             }
         }
     }
-    
+
     // MARK: - Private Helpers
-    
+
     private func scheduleFlush() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -99,12 +99,12 @@ final class EventQueue {
             }
         }
     }
-    
+
     private func setupNetworkMonitor() {
         networkMonitor.pathUpdateHandler = { [weak self] path in
             let wasOffline = !(self?.isOnline ?? true)
             self?.isOnline = path.status == .satisfied
-            
+
             // If we just came online, try to flush
             if wasOffline && path.status == .satisfied {
                 self?.flush()
@@ -112,7 +112,7 @@ final class EventQueue {
         }
         networkMonitor.start(queue: queue)
     }
-    
+
     private func setupBackgroundObserver() {
         #if canImport(UIKit)
         NotificationCenter.default.addObserver(
@@ -124,12 +124,12 @@ final class EventQueue {
         }
         #endif
     }
-    
+
     private func persistQueue() {
         guard let data = try? JSONEncoder().encode(events) else { return }
         UserDefaults.standard.set(data, forKey: persistenceKey)
     }
-    
+
     private func loadPersistedQueue() {
         guard let data = UserDefaults.standard.data(forKey: persistenceKey),
               let persisted = try? JSONDecoder().decode([Event].self, from: data) else {

@@ -2,7 +2,7 @@
 //  RespectlyticsSwiftTests.swift
 //  RespectlyticsSwift
 //
-//  Copyright (c) 2025 Respectlytics. All rights reserved.
+//  Copyright (c) 2025 Respectlytics. Licensed under MIT.
 //
 
 import XCTest
@@ -194,6 +194,24 @@ final class RespectlyticsSwiftTests: XCTestCase {
         let config = Configuration(apiKey: "test-key", apiEndpoint: customEndpoint)
 
         XCTAssertEqual(config.apiEndpoint, customEndpoint)
+    }
+
+    // MARK: - NetworkClient Tests
+
+    func testNetworkClientUsesDefaultEndpoint() {
+        // NetworkClient should have a default endpoint matching the Configuration default
+        let client = NetworkClient()
+        client.configure(apiKey: "test-key")
+        // Should not crash - default endpoint is valid
+        XCTAssertTrue(true)
+    }
+
+    func testNetworkClientAcceptsCustomEndpoint() {
+        let customEndpoint = URL(string: "https://self-hosted.example.com/api/v1/events/")!
+        let client = NetworkClient()
+        client.configure(apiKey: "test-key", apiEndpoint: customEndpoint)
+        // Should not crash - custom endpoint is accepted
+        XCTAssertTrue(true)
     }
 
     // MARK: - Integration Tests

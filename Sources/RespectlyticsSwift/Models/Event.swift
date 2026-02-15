@@ -2,7 +2,7 @@
 //  Event.swift
 //  RespectlyticsSwift
 //
-//  Copyright (c) 2025 Respectlytics. All rights reserved.
+//  Copyright (c) 2025 Respectlytics. Licensed under MIT.
 //
 
 import Foundation
@@ -13,13 +13,12 @@ import UIKit
 /// Represents an analytics event.
 ///
 /// This struct only contains fields that are accepted by the Respectlytics API.
-/// The API uses a strict allowlist - only 4 fields are stored:
+/// The API stores exactly 5 fields — these 4 sent by the SDK plus `country`
+/// (derived server-side from IP, which is immediately discarded):
 /// - event_name (required)
 /// - timestamp
 /// - session_id
 /// - platform
-///
-/// Country is derived server-side from IP, which is immediately discarded.
 /// Note: user_id is NOT supported. Respectlytics uses session-based analytics only.
 struct Event: Codable {
     let eventName: String

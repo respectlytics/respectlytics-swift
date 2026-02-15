@@ -3,10 +3,7 @@
 //  RespectlyticsSwift
 //
 //  Official Respectlytics SDK for iOS/macOS
-//  Copyright (c) 2025 Respectlytics. All rights reserved.
-//
-//  This SDK is provided under a proprietary license.
-//  See LICENSE file for details.
+//  Copyright (c) 2025 Respectlytics. Licensed under MIT.
 //
 
 import Foundation
@@ -56,16 +53,18 @@ public final class Respectlytics {
     /// Initialize the SDK with your API key.
     /// Call once at app launch, typically in `application(_:didFinishLaunchingWithOptions:)`.
     ///
-    /// - Parameter apiKey: Your Respectlytics API key from the dashboard
-    public static func configure(apiKey: String) {
+    /// - Parameters:
+    ///   - apiKey: Your Respectlytics API key from the dashboard
+    ///   - apiEndpoint: Custom API endpoint URL for self-hosted instances (defaults to Respectlytics Cloud)
+    public static func configure(apiKey: String, apiEndpoint: URL? = nil) {
         shared.queue.async {
             guard !apiKey.isEmpty else {
                 print("[Respectlytics] ⚠️ API key cannot be empty")
                 return
             }
 
-            shared.configuration = Configuration(apiKey: apiKey)
-            shared.networkClient.configure(apiKey: apiKey)
+            shared.configuration = Configuration(apiKey: apiKey, apiEndpoint: apiEndpoint ?? URL(string: "https://respectlytics.com/api/v1/events/")!)
+            shared.networkClient.configure(apiKey: apiKey, apiEndpoint: apiEndpoint)
             shared.eventQueue.start()
 
             print("[Respectlytics] ✓ SDK configured (session-based analytics)")
