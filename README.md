@@ -1,10 +1,10 @@
 # RespectlyticsSwift
 
-Official Respectlytics SDK for iOS and macOS. Privacy-first analytics with automatic session management, offline support, and zero device identifier collection.
+Official Respectlytics SDK for iOS and macOS. Privacy-first analytics with automatic session management and zero device storage or identifier collection.
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/platform-iOS%2015%2B%20%7C%20macOS%2012%2B-lightgrey.svg)](https://developer.apple.com)
-[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/2.2.0)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/3.0.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Installation
@@ -16,12 +16,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `2.2.0` or later
+3. Select version: `3.0.0` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "2.2.0")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "3.0.0")
 ]
 ```
 
@@ -51,7 +51,7 @@ Respectlytics.configure(
 )
 ```
 
-That's it! The SDK handles batching, offline queue, session management, and automatic retries.
+That's it! The SDK handles batching, session management, and automatic retries — all in memory, with zero bytes written to device storage.
 
 ## API Reference
 
@@ -127,7 +127,7 @@ The SDK handles these automatically - no developer action needed:
 |---------|----------|
 | **Session Management** | New session ID on app launch, rotates after 2 hours |
 | **Event Batching** | Events queued and sent in batches (max 10 events or 30 seconds) |
-| **Offline Support** | Events queued when offline, sent when connectivity returns |
+| **Offline Support** | Events held in memory when offline, sent when connectivity returns. Unsent events are lost on force-quit (deliberate privacy-first trade-off). |
 | **Retry Logic** | Failed requests retry with exponential backoff (max 3 attempts) |
 | **Background Sync** | Events flushed when app enters background |
 
@@ -158,6 +158,7 @@ Respectlytics helps developers **avoid collecting personal data** in the first p
 ### Privacy Architecture
 
 - **RAM-only sessions**: Session IDs exist only in device memory, never written to disk
+- **RAM-only event queue**: Queued events exist only in device memory — nothing is written to UserDefaults, files, or any device storage for analytics purposes
 - **2-hour rotation**: Sessions automatically expire and regenerate
 - **New session on restart**: Each app launch starts a fresh session
 - **Server-side hashing**: Session IDs are hashed with daily-rotating salt before storage
@@ -169,6 +170,16 @@ This architecture is designed to be **transparent** (you know exactly what's col
 Consult your legal team to determine your specific compliance requirements.
 
 ## Migration Guide
+
+### From v2.x to v3.0.0
+
+**Breaking Change:** The event queue no longer persists to UserDefaults.
+
+In v2.x, queued-but-unsent events were written to `UserDefaults` and survived app force-quit. In v3.0.0, the event queue is fully RAM-only — if the app is force-quit before events are flushed, unsent events are lost.
+
+**Why?** This is a deliberate privacy-first design choice. Zero bytes are written to device storage for analytics purposes. The SDK auto-flushes every 30 seconds, on 10 queued events, and when the app enters background, so the event loss window is narrow.
+
+**What to do:** No code changes needed. The public API (`configure`, `track`, `flush`) is unchanged. If your app relied on events surviving force-quit, be aware that this is no longer the case.
 
 ### From v2.0.x to v2.1.0
 

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-02-27
+
+### ⚠️ Breaking Change
+- **Event queue is now fully RAM-only.** Queued-but-unsent events no longer persist to `UserDefaults` and will not survive app force-quit or crash. This is a deliberate privacy-first design choice — zero bytes are written to the user's device for analytics purposes.
+
+### Removed
+- `UserDefaults` persistence for event queue — the key `com.respectlytics.eventQueue` is no longer written to or read from
+- `persistQueue()` and `loadPersistedQueue()` internal methods
+
+### Why This Change?
+Previous versions wrote queued events (including session IDs) to `UserDefaults` on every `track()` call, while documentation claimed "RAM-only" and "never written to disk." This release makes the SDK genuinely match those claims.
+
+The SDK auto-flushes every 30 seconds, on 10 queued events, and when the app enters background. The window during which events can be lost is narrow — a user would need to track events, lose connectivity, and force-quit the app within a single flush interval.
+
+For session-based, aggregate analytics, occasional event loss does not materially affect data quality. This is the correct trade-off — clean privacy architecture, zero device storage, and simplified compliance in exchange for negligible event loss.
+
+### Migration
+No code changes required. The public API (`configure`, `track`, `flush`) is unchanged.
+
+```swift
+// Works identically to v2.x:
+Respectlytics.configure(apiKey: "your-api-key")
+Respectlytics.track("purchase")
+```
+
+If your app relied on events surviving force-quit, be aware this is no longer the case.
+
+---
+
 ## [2.2.0] - 2026-02-15
 
 ### Added

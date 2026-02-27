@@ -11,7 +11,16 @@ import UIKit
 #endif
 import Network
 
-/// Manages event batching, persistence, and automatic flushing
+/// Manages event batching and automatic flushing.
+///
+/// Event queue is RAM-only by design. No data is written to device storage
+/// (no UserDefaults, no files, no Keychain) for analytics purposes. If the app
+/// is force-quit before the next flush, unsent events are lost. This is a
+/// deliberate privacy-first design choice — zero bytes are written to the
+/// user's device for analytics purposes.
+///
+/// The SDK auto-flushes every 30 seconds, on 10 queued events, and when the
+/// app enters background, so the loss window is narrow.
 final class EventQueue {
 
     private var events: [Event] = []
@@ -22,14 +31,12 @@ final class EventQueue {
 
     private let maxQueueSize = 10
     private let flushInterval: TimeInterval = 30
-    private let persistenceKey = "com.respectlytics.eventQueue"
 
     private let lock = NSLock()
     private let queue = DispatchQueue(label: "com.respectlytics.eventQueue")
 
     init(networkClient: NetworkClient) {
         self.networkClient = networkClient
-        loadPersistedQueue()
         setupNetworkMonitor()
         setupBackgroundObserver()
     }
@@ -43,11 +50,10 @@ final class EventQueue {
         scheduleFlush()
     }
 
-    /// Add an event to the queue
+    /// Add an event to the in-memory queue.
     func add(_ event: Event) {
         lock.lock()
         events.append(event)
-        persistQueue()
         let shouldFlush = events.count >= maxQueueSize
         lock.unlock()
 
@@ -56,7 +62,7 @@ final class EventQueue {
         }
     }
 
-    /// Force flush all queued events
+    /// Force flush all queued events.
     func flush() {
         lock.lock()
         guard !events.isEmpty else {
@@ -71,17 +77,15 @@ final class EventQueue {
 
         let batch = events
         events = []
-        persistQueue()
         lock.unlock()
 
         Task {
             do {
                 try await networkClient.send(events: batch)
             } catch {
-                // Re-add failed events to queue
+                // Re-add failed events to in-memory queue for retry
                 lock.lock()
                 events.insert(contentsOf: batch, at: 0)
-                persistQueue()
                 lock.unlock()
                 print("[Respectlytics] Failed to send events, will retry later")
             }
@@ -123,18 +127,5 @@ final class EventQueue {
             self?.flush()
         }
         #endif
-    }
-
-    private func persistQueue() {
-        guard let data = try? JSONEncoder().encode(events) else { return }
-        UserDefaults.standard.set(data, forKey: persistenceKey)
-    }
-
-    private func loadPersistedQueue() {
-        guard let data = UserDefaults.standard.data(forKey: persistenceKey),
-              let persisted = try? JSONDecoder().decode([Event].self, from: data) else {
-            return
-        }
-        events = persisted
     }
 }
