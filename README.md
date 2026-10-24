@@ -51,7 +51,7 @@ Respectlytics.configure(
 )
 ```
 
-That's it! The SDK handles batching, session management, and automatic retries — all in memory, with zero bytes written to device storage.
+That's it! The SDK handles batching, session management, and automatic retries, all in memory, with zero bytes written to device storage.
 
 ## API Reference
 
@@ -182,7 +182,7 @@ If the server refuses the app key (401), the SDK drops the events it holds and s
 
 ## 🛡️ Privacy by Design
 
-Respectlytics helps developers **avoid collecting personal data** in the first place. Our motto is **Return of Avoidance (ROA)** — the best way to protect sensitive data is to never collect it.
+Respectlytics helps developers **avoid collecting personal data** in the first place. Our motto is **Return of Avoidance (ROA)**: the best way to protect sensitive data is to never collect it.
 
 ### What We Store (5 fields)
 
@@ -209,7 +209,7 @@ On paid plans, an event also keeps the [properties](#properties-and-ab-tests) yo
 ### Privacy Architecture
 
 - **RAM-only sessions**: Session IDs exist only in device memory, never written to disk
-- **RAM-only event queue**: Queued events exist only in device memory — nothing is written to UserDefaults, files, or any device storage for analytics purposes
+- **RAM-only event queue**: Queued events exist only in device memory; nothing is written to UserDefaults, files, or any device storage for analytics purposes
 - **2-hour rotation**: Sessions automatically expire and regenerate
 - **New session on restart**: Each app launch starts a fresh session
 - **Server-side hashing**: Session IDs are hashed with daily-rotating salt before storage
@@ -231,7 +231,7 @@ No code changes needed. `track(_:)` works as before, and an event without proper
 
 **Breaking Change:** The event queue no longer persists to UserDefaults.
 
-In v2.x, queued-but-unsent events were written to `UserDefaults` and survived app force-quit. In v3.0.0, the event queue is fully RAM-only — if the app is force-quit before events are flushed, unsent events are lost.
+In v2.x, queued-but-unsent events were written to `UserDefaults` and survived app force-quit. In v3.0.0, the event queue is fully RAM-only: if the app is force-quit before events are flushed, unsent events are lost.
 
 **Why?** This is a deliberate privacy-first design choice. Zero bytes are written to device storage for analytics purposes. The SDK auto-flushes every 30 seconds, on 10 queued events, and when the app enters background, so the event loss window is narrow.
 
@@ -297,10 +297,10 @@ This SDK is licensed under the [MIT License](LICENSE).
 
 ## Support
 
-- Documentation: [https://respectlytics.com/sdk/](https://respectlytics.com/sdk/)
+- Documentation: [https://respectlytics.com/sdk/](https://respectlytics.com/sdk/?ref=respectlytics-github)
 - Issues: [https://github.com/respectlytics/respectlytics-swift/issues](https://github.com/respectlytics/respectlytics-swift/issues)
 - Email: respectlytics@loheden.com
 
 ---
 
-Made with ❤️ by [Respectlytics](https://respectlytics.com)
+Made with ❤️ by [Respectlytics](https://respectlytics.com/?ref=respectlytics-github)
