@@ -4,7 +4,7 @@ Official Respectlytics SDK for iOS and macOS. Privacy-first analytics with autom
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/platform-iOS%2015%2B%20%7C%20macOS%2012%2B-lightgrey.svg)](https://developer.apple.com)
-[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/v3.1.0)
+[![Version](https://img.shields.io/badge/version-3.1.1-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/v3.1.1)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Installation
@@ -16,12 +16,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `3.1.0` or later
+3. Select version: `3.1.1` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "3.1.0")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "3.1.1")
 ]
 ```
 
@@ -152,6 +152,9 @@ The SDK also drops a name that is not lowercase letters, digits and `_` (startin
 A dropped property never stops the event: the event is sent with what passed.
 In debug builds, the console names each dropped property and the reason, never its value.
 
+A self-hosted Community Edition server keeps no properties, and the event is still kept.
+If the server is older than this SDK and refuses the properties, the SDK sends the event again without them.
+
 ## 🔄 Automatic Session Management
 
 Session IDs are managed entirely by the SDK - no configuration needed.
@@ -172,6 +175,9 @@ The SDK handles these automatically - no developer action needed:
 | **Offline Support** | Events held in memory when offline, sent when connectivity returns. Unsent events are lost on force-quit (deliberate privacy-first trade-off). |
 | **Retry Logic** | Failed requests retry with exponential backoff (max 3 attempts) |
 | **Background Sync** | Events flushed when app enters background |
+
+An event the server refuses as invalid (400) is dropped, so it never holds up the events after it.
+Once the server has confirmed an event, the SDK does not send it again.
 
 ## 🛡️ Privacy by Design
 

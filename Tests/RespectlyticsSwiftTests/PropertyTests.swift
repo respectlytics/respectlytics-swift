@@ -367,12 +367,10 @@ final class PropertyTests: XCTestCase {
     private func sendThroughTheSDK(_ events: [(String, [String: Any]?)]) throws -> [[String: Any]] {
         let received = expectation(description: "events reach the network")
         received.expectedFulfillmentCount = events.count
-        StubURLProtocol.start { _ in received.fulfill() }
+        StubURLProtocol.start(onReceive: { _ in received.fulfill() })
         defer { StubURLProtocol.stop() }
 
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [StubURLProtocol.self]
-        let sdk = Respectlytics(networkClient: NetworkClient(session: URLSession(configuration: configuration)))
+        let sdk = Respectlytics(networkClient: NetworkClient(session: StubURLProtocol.session()))
 
         sdk.setUp(apiKey: "test-key", apiEndpoint: stubEndpoint)
         for (name, properties) in events {
@@ -385,68 +383,5 @@ final class PropertyTests: XCTestCase {
         return try StubURLProtocol.bodies().map {
             try XCTUnwrap(JSONSerialization.jsonObject(with: $0) as? [String: Any])
         }
-    }
-}
-
-/// Answers every request with 201 and keeps its body, so a test sees what the SDK sent.
-final class StubURLProtocol: URLProtocol {
-
-    private static let lock = NSLock()
-    private static var received: [Data] = []
-    private static var onReceive: ((Data) -> Void)?
-
-    static func start(onReceive handler: @escaping (Data) -> Void) {
-        lock.lock()
-        received = []
-        onReceive = handler
-        lock.unlock()
-    }
-
-    static func stop() {
-        lock.lock()
-        onReceive = nil
-        lock.unlock()
-    }
-
-    static func bodies() -> [Data] {
-        lock.lock()
-        defer { lock.unlock() }
-        return received
-    }
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        let body = request.httpBody ?? Self.read(request.httpBodyStream)
-
-        Self.lock.lock()
-        Self.received.append(body)
-        let handler = Self.onReceive
-        Self.lock.unlock()
-
-        let response = HTTPURLResponse(url: request.url!, statusCode: 201, httpVersion: "HTTP/1.1",
-                                       headerFields: ["Content-Type": "application/json"])!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Data("{}".utf8))
-        client?.urlProtocolDidFinishLoading(self)
-        handler?(body)
-    }
-
-    override func stopLoading() {}
-
-    private static func read(_ stream: InputStream?) -> Data {
-        guard let stream = stream else { return Data() }
-        stream.open()
-        defer { stream.close() }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 4096)
-        while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            guard count > 0 else { break }
-            data.append(buffer, count: count)
-        }
-        return data
     }
 }

@@ -37,15 +37,39 @@ final class NetworkClient {
         }
     }
 
-    /// Send events to the API
-    func send(events: [Event]) async throws {
+    /// Send one event to the API.
+    ///
+    /// Network errors and 429 are retried with backoff, and anything worth trying
+    /// again later (network errors, 429, 5xx, 401) is thrown, so the queue keeps the event.
+    ///
+    /// A 400 is final, since no retry can change it. An event with properties is
+    /// then sent once more without them, for a server older than 3.1.0 (a self-hosted
+    /// Community Edition not yet updated) that refuses the `properties` field. If the
+    /// server refuses the event itself, it is dropped, so it never holds up the
+    /// events queued after it.
+    func send(_ event: Event) async throws {
         guard let apiKey = apiKey else {
             throw NetworkError.notConfigured
         }
 
-        for event in events {
+        do {
             try await sendEvent(event, apiKey: apiKey, attempt: 1)
+            return
+        } catch NetworkError.badRequest {
+            // Final: handled below
         }
+
+        if event.properties != nil {
+            do {
+                try await sendEvent(event.withoutProperties, apiKey: apiKey, attempt: 1)
+                print("[Respectlytics] ⚠️ Server refused the properties, event sent without them")
+                return
+            } catch NetworkError.badRequest {
+                // Final: the event itself is refused
+            }
+        }
+
+        print("[Respectlytics] ⚠️ Server refused an event (400), dropped")
     }
 
     /// The POST that carries one event. `properties` is in the body only when the event has some.

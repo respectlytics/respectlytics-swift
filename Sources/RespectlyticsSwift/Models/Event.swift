@@ -51,6 +51,11 @@ struct Event: Codable {
         self.properties = properties?.isEmpty == true ? nil : properties
     }
 
+    /// The same event with no properties, for a server that refuses the field.
+    var withoutProperties: Event {
+        Event(eventName: eventName, timestamp: timestamp, sessionId: sessionId, platform: platform)
+    }
+
     private static func currentPlatform() -> String {
         #if os(iOS)
         return "iOS"

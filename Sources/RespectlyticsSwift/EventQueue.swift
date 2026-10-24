@@ -63,34 +63,53 @@ final class EventQueue {
     }
 
     /// Force flush all queued events.
-    func flush() {
+    ///
+    /// Events are sent one at a time, in order. When one fails in a way worth
+    /// trying again, it and the events after it go back to the queue; the ones the
+    /// server already accepted are never sent twice.
+    ///
+    /// - Returns: The task that sends the batch (tests wait on it), or nil when
+    ///   there was nothing to send or the device is offline.
+    @discardableResult
+    func flush() -> Task<Void, Never>? {
         lock.lock()
         guard !events.isEmpty else {
             lock.unlock()
-            return
+            return nil
         }
 
         guard isOnline else {
             lock.unlock()
-            return
+            return nil
         }
 
         let batch = events
         events = []
         lock.unlock()
 
-        Task {
+        return Task {
+            var sent = 0
             do {
-                try await networkClient.send(events: batch)
+                for event in batch {
+                    try await networkClient.send(event)
+                    sent += 1
+                }
             } catch {
-                // Re-add failed events to in-memory queue for retry
-                requeue(batch)
+                // Re-add only the events not yet sent to the in-memory queue for retry
+                requeue(Array(batch.dropFirst(sent)))
                 print("[Respectlytics] Failed to send events, will retry later")
             }
         }
     }
 
-    /// Put a batch that failed back at the front of the in-memory queue.
+    /// Events waiting to be sent.
+    var queuedEvents: [Event] {
+        lock.lock()
+        defer { lock.unlock() }
+        return events
+    }
+
+    /// Put events that were not sent back at the front of the in-memory queue.
     /// A synchronous method, so the lock is never taken directly in the async task.
     private func requeue(_ batch: [Event]) {
         lock.lock()
