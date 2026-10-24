@@ -17,6 +17,9 @@ import Foundation
 ///
 /// // 2. Track events
 /// Respectlytics.track("purchase")
+///
+/// // 3. Optionally with properties declared in the app's Settings
+/// Respectlytics.track("paywall_viewed", properties: ["paywall": "b"])
 /// ```
 ///
 /// ## 🔄 Automatic Session Management
@@ -43,8 +46,14 @@ public final class Respectlytics {
 
     // MARK: - Initialization
 
-    private init() {
-        self.networkClient = NetworkClient()
+    private convenience init() {
+        self.init(networkClient: NetworkClient())
+    }
+
+    /// The SDK on a given network client. The public API uses `shared`; tests build
+    /// their own instance to see what reaches the network.
+    init(networkClient: NetworkClient) {
+        self.networkClient = networkClient
         self.eventQueue = EventQueue(networkClient: networkClient)
     }
 
@@ -57,18 +66,7 @@ public final class Respectlytics {
     ///   - apiKey: Your Respectlytics API key from the dashboard
     ///   - apiEndpoint: Custom API endpoint URL for self-hosted instances (defaults to Respectlytics Cloud)
     public static func configure(apiKey: String, apiEndpoint: URL? = nil) {
-        shared.queue.async {
-            guard !apiKey.isEmpty else {
-                print("[Respectlytics] ⚠️ API key cannot be empty")
-                return
-            }
-
-            shared.configuration = Configuration(apiKey: apiKey, apiEndpoint: apiEndpoint ?? URL(string: "https://respectlytics.com/api/v1/events/")!)
-            shared.networkClient.configure(apiKey: apiKey, apiEndpoint: apiEndpoint)
-            shared.eventQueue.start()
-
-            print("[Respectlytics] ✓ SDK configured (session-based analytics)")
-        }
+        shared.setUp(apiKey: apiKey, apiEndpoint: apiEndpoint)
     }
 
     /// Track an event.
@@ -80,8 +78,65 @@ public final class Respectlytics {
     ///
     /// - Parameter eventName: Name of the event (e.g., "purchase", "button_clicked")
     public static func track(_ eventName: String) {
-        shared.queue.async {
-            guard shared.configuration != nil else {
+        shared.record(eventName, .empty)
+    }
+
+    /// Track an event with properties, such as the variant of an A/B test.
+    ///
+    /// ```swift
+    /// Respectlytics.track("paywall_viewed", properties: ["paywall": "b"])
+    /// Respectlytics.track("checkout_started", properties: ["price": 7.5])
+    /// ```
+    ///
+    /// The server keeps a property only on a paid plan, once it is declared in the
+    /// app's Settings on respectlytics.com: a list of values, or a number kept as
+    /// the band it falls in. Everything else is dropped by the server.
+    ///
+    /// Before sending, the SDK drops what the server could never keep:
+    /// - a name that is not `^[a-z][a-z0-9_]{0,39}$`
+    /// - text that is not `^[A-Za-z0-9][A-Za-z0-9 _.\-]{0,39}$`
+    /// - a number that is NaN or infinite
+    /// - any value that is not text, a number or a boolean (`nil` included)
+    /// - properties beyond the first 20 that passed (by name, alphabetically)
+    ///
+    /// A dropped property never stops the event: it is sent with what passed. In
+    /// debug builds the console names each dropped property and why, never its value.
+    ///
+    /// - Parameters:
+    ///   - eventName: Name of the event (e.g., "purchase", "button_clicked")
+    ///   - properties: Property names and values: `String`, any integer or
+    ///     floating-point number, `Decimal`, or `Bool`
+    public static func track(_ eventName: String, properties: [String: Any]) {
+        // Filtered here, on the caller's thread, so only plain values cross to the SDK's queue.
+        shared.record(eventName, PropertyFilter.filter(properties))
+    }
+
+    /// Force send all queued events immediately.
+    /// Rarely needed - the SDK auto-flushes every 30 seconds or when the queue reaches 10 events.
+    public static func flush() {
+        shared.flushQueue()
+    }
+
+    // MARK: - Instance Implementation
+
+    func setUp(apiKey: String, apiEndpoint: URL? = nil) {
+        queue.async {
+            guard !apiKey.isEmpty else {
+                print("[Respectlytics] ⚠️ API key cannot be empty")
+                return
+            }
+
+            self.configuration = Configuration(apiKey: apiKey, apiEndpoint: apiEndpoint ?? URL(string: "https://respectlytics.com/api/v1/events/")!)
+            self.networkClient.configure(apiKey: apiKey, apiEndpoint: apiEndpoint)
+            self.eventQueue.start()
+
+            print("[Respectlytics] ✓ SDK configured (session-based analytics)")
+        }
+    }
+
+    func record(_ eventName: String, _ properties: PropertyFilter.Filtered) {
+        queue.async {
+            guard self.configuration != nil else {
                 print("[Respectlytics] ⚠️ SDK not configured. Call configure(apiKey:) first.")
                 return
             }
@@ -96,20 +151,25 @@ public final class Respectlytics {
                 return
             }
 
+            #if DEBUG
+            if !properties.dropped.isEmpty {
+                print(PropertyFilter.logLine(eventName: eventName, dropped: properties.dropped))
+            }
+            #endif
+
             let event = Event(
                 eventName: eventName,
-                sessionId: shared.sessionManager.getSessionId()
+                sessionId: self.sessionManager.getSessionId(),
+                properties: properties.kept
             )
 
-            shared.eventQueue.add(event)
+            self.eventQueue.add(event)
         }
     }
 
-    /// Force send all queued events immediately.
-    /// Rarely needed - the SDK auto-flushes every 30 seconds or when the queue reaches 10 events.
-    public static func flush() {
-        shared.queue.async {
-            shared.eventQueue.flush()
+    func flushQueue() {
+        queue.async {
+            self.eventQueue.flush()
         }
     }
 }

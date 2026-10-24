@@ -84,12 +84,18 @@ final class EventQueue {
                 try await networkClient.send(events: batch)
             } catch {
                 // Re-add failed events to in-memory queue for retry
-                lock.lock()
-                events.insert(contentsOf: batch, at: 0)
-                lock.unlock()
+                requeue(batch)
                 print("[Respectlytics] Failed to send events, will retry later")
             }
         }
+    }
+
+    /// Put a batch that failed back at the front of the in-memory queue.
+    /// A synchronous method, so the lock is never taken directly in the async task.
+    private func requeue(_ batch: [Event]) {
+        lock.lock()
+        events.insert(contentsOf: batch, at: 0)
+        lock.unlock()
     }
 
     // MARK: - Private Helpers

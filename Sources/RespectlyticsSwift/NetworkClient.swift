@@ -18,11 +18,16 @@ final class NetworkClient {
     private let maxRetries = 3
     private let timeout: TimeInterval = 30
 
-    init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = timeout
-        config.timeoutIntervalForResource = timeout
-        self.session = URLSession(configuration: config)
+    /// - Parameter session: The session to send with; tests pass one with a stub protocol.
+    init(session: URLSession? = nil) {
+        if let session = session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = timeout
+            config.timeoutIntervalForResource = timeout
+            self.session = URLSession(configuration: config)
+        }
     }
 
     func configure(apiKey: String, apiEndpoint: URL? = nil) {
@@ -43,13 +48,19 @@ final class NetworkClient {
         }
     }
 
-    private func sendEvent(_ event: Event, apiKey: String, attempt: Int) async throws {
+    /// The POST that carries one event. `properties` is in the body only when the event has some.
+    func request(for event: Event, apiKey: String) throws -> URLRequest {
         var request = URLRequest(url: apiEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "X-App-Key")
 
         request.httpBody = try encoder.encode(event)
+        return request
+    }
+
+    private func sendEvent(_ event: Event, apiKey: String, attempt: Int) async throws {
+        let request = try request(for: event, apiKey: apiKey)
 
         do {
             let (_, response) = try await session.data(for: request)

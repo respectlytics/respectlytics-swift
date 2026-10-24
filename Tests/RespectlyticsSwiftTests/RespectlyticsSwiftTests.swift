@@ -76,8 +76,10 @@ final class RespectlyticsSwiftTests: XCTestCase {
         // user_id should NOT be present (v2.0.0+ - session-based only)
         XCTAssertNil(json["user_id"], "user_id should not be in event payload")
 
-        // These fields should NOT be present (privacy violation)
+        // v3.1.0: properties are sent only when the event has some (PropertyTests)
         XCTAssertNil(json["properties"])
+
+        // These fields should NOT be present (privacy violation)
         XCTAssertNil(json["metadata"])
         XCTAssertNil(json["data"])
         XCTAssertNil(json["custom"])

@@ -4,7 +4,7 @@ Official Respectlytics SDK for iOS and macOS. Privacy-first analytics with autom
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/platform-iOS%2015%2B%20%7C%20macOS%2012%2B-lightgrey.svg)](https://developer.apple.com)
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/3.0.0)
+[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/v3.1.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Installation
@@ -16,12 +16,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `3.0.0` or later
+3. Select version: `3.1.0` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "3.0.0")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "3.1.0")
 ]
 ```
 
@@ -89,7 +89,7 @@ Respectlytics.configure(
 
 ### `track(_:)`
 
-Track an event. Custom properties are not supported (privacy by design).
+Track an event.
 
 ```swift
 Respectlytics.track("button_clicked")
@@ -102,6 +102,20 @@ Respectlytics.track("checkout_started")
 - `session_id` - RAM-only, rotates after 2 hours
 - `platform` - "iOS" or "macOS"
 
+### `track(_:properties:)`
+
+Track an event with properties. See [Properties and A/B tests](#properties-and-ab-tests).
+
+```swift
+Respectlytics.track("paywall_viewed", properties: ["paywall": "b"])
+Respectlytics.track("checkout_started", properties: ["price": 7.5])
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `eventName` | `String` | Yes | Name of the event |
+| `properties` | `[String: Any]` | Yes | Names and values: a `String`, a number (`Int`, `Double`, `Decimal` and the like) or a `Bool` |
+
 ### `flush()`
 
 Force send all queued events immediately. Rarely needed - the SDK auto-flushes every 30 seconds or when the queue reaches 10 events.
@@ -109,6 +123,34 @@ Force send all queued events immediately. Rarely needed - the SDK auto-flushes e
 ```swift
 Respectlytics.flush()
 ```
+
+## Properties and A/B tests
+
+Send properties with an event to compare groups of users, such as the variants of an A/B test.
+
+```swift
+// The variant of an A/B test
+Respectlytics.track("paywall_viewed", properties: ["paywall": "b"])
+
+// A number
+Respectlytics.track("checkout_started", properties: ["price": 7.5])
+```
+
+Properties are kept on paid plans, once you declare them in your app's Settings on respectlytics.com.
+Each one is a list of values (such as `a` and `b`), or a number, which is kept only as the band it falls in (such as "5 to 10").
+A `Bool` is kept for a list declared as `true` and `false`.
+On the free plan, the server drops every property and keeps the event.
+
+What is dropped:
+
+- **Anything you have not declared.** The server drops it and keeps the event.
+- **Text that is not one of your values.** The server compares it exactly, so a short value like "John Smith" is dropped there when it is not on your list.
+- **Text that cannot be a list value.** The SDK drops it, so it never leaves the device: an email address, a URL, anything over 40 characters. A list value is letters, digits, spaces, `_`, `.` and `-`, and starts with a letter or digit.
+- **More than 20 properties.** The SDK sends the first 20 that pass, by name in alphabetical order.
+
+The SDK also drops a name that is not lowercase letters, digits and `_` (starting with a letter, at most 40 characters), a number that is NaN or infinite, and any value that is not text, a number or a `Bool`.
+A dropped property never stops the event: the event is sent with what passed.
+In debug builds, the console names each dropped property and the reason, never its value.
 
 ## 🔄 Automatic Session Management
 
@@ -145,6 +187,8 @@ Respectlytics helps developers **avoid collecting personal data** in the first p
 | `platform` | iOS, macOS |
 | `country` | Derived server-side from IP (IP immediately discarded, never stored) |
 
+On paid plans, an event also keeps the [properties](#properties-and-ab-tests) you declared in your app's Settings: a value from your list, or the band a number falls in.
+
 ### What We DON'T Collect
 
 | Data | Why Not |
@@ -152,7 +196,7 @@ Respectlytics helps developers **avoid collecting personal data** in the first p
 | IDFA / IDFV | Device identifiers enable cross-app tracking |
 | IP addresses | Processed transiently for country lookup, never stored |
 | Device fingerprints | Can be used to identify individuals |
-| Custom properties | API rejects extra fields to prevent accidental PII |
+| Undeclared properties | The server drops any property you have not declared, and any value not on your list |
 | Persistent user IDs | No cross-session tracking by design |
 
 ### Privacy Architecture
@@ -162,7 +206,7 @@ Respectlytics helps developers **avoid collecting personal data** in the first p
 - **2-hour rotation**: Sessions automatically expire and regenerate
 - **New session on restart**: Each app launch starts a fresh session
 - **Server-side hashing**: Session IDs are hashed with daily-rotating salt before storage
-- **Strict allowlist**: API rejects any fields not on the 5-field allowlist
+- **Strict allowlist**: API rejects any field not on its allowlist, and keeps only the properties you declared
 - **Open source SDKs**: Full transparency into what data is collected
 
 This architecture is designed to be **transparent** (you know exactly what's collected), **defensible** (minimal data surface), and **clear** (explicit reasoning for each field).
@@ -170,6 +214,11 @@ This architecture is designed to be **transparent** (you know exactly what's col
 Consult your legal team to determine your specific compliance requirements.
 
 ## Migration Guide
+
+### From v3.0.0 to v3.1.0
+
+No code changes needed. `track(_:)` works as before, and an event without properties sends the same body as before.
+`track(_:properties:)` is new.
 
 ### From v2.x to v3.0.0
 
@@ -218,6 +267,12 @@ If you need screen context, include it in your event name (e.g., `product_detail
 2. Check console for `[Respectlytics]` log messages
 3. Call `Respectlytics.flush()` to force send events
 4. Ensure you have network connectivity
+
+### A property does not appear
+
+1. In a debug build, check the console: the SDK names each property it dropped and why
+2. Check that the property is declared in your app's Settings on respectlytics.com
+3. Check that your plan includes properties
 
 ### "SDK not configured" warning
 

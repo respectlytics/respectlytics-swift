@@ -32,7 +32,7 @@ final class IntegrationTests: XCTestCase {
             TestConfiguration.printEnvironmentStatus()
             Self.environmentPrinted = true
             Self.testResults = []
-            print("🧪 Running Integration Tests (v2.2.0 - Session-Based Analytics)...")
+            print("🧪 Running Integration Tests (v3.1.0 - Session-Based Analytics)...")
         }
 
         // Check for API key - tests will be skipped if not set
@@ -158,6 +158,38 @@ final class IntegrationTests: XCTestCase {
         } else {
             recordResult(testName, passed: false, detail: "Expected 201, got \(statusCode)")
             XCTFail("Expected 201 Created, got \(statusCode)")
+        }
+    }
+
+    // MARK: - Test: Event with Properties (201)
+
+    /// Verify that the body the SDK builds for an event with properties is accepted,
+    /// and that the answer names what was kept and what was ignored (v3.1.0)
+    func testEventWithProperties_Returns201() async throws {
+        let testName = "testEventWithProperties"
+
+        // Built and encoded by the SDK itself, exactly as track(_:properties:) sends it
+        let filtered = PropertyFilter.filter(["paywall": "b", "price": 7.5, "Bad Name": "b"])
+        let event = Event(
+            eventName: "sdk_test_properties",
+            sessionId: UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased(),
+            properties: filtered.kept
+        )
+        let client = NetworkClient()
+        client.configure(apiKey: apiKey, apiEndpoint: URL(string: eventsURL)!)
+        let request = try client.request(for: event, apiKey: apiKey)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+
+        // An undeclared property is ignored by the server, never a reason to refuse the event
+        if statusCode == 201, json?["properties"] is [String: Any], json?["ignored_properties"] is [Any] {
+            recordResult(testName, passed: true, detail: "201 Created with properties and ignored_properties")
+        } else {
+            let body = String(data: data, encoding: .utf8) ?? "nil"
+            recordResult(testName, passed: false, detail: "Expected 201 with properties, got \(statusCode). Body: \(body)")
+            XCTFail("Expected 201 with properties and ignored_properties, got \(statusCode). Body: \(body)")
         }
     }
 
