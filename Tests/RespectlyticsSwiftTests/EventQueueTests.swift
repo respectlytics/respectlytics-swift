@@ -6,6 +6,7 @@
 //
 //  Sending (3.1.1): an event the server accepted is never sent twice, and an
 //  event it refuses (400) never holds up the events behind it.
+//  3.1.2: a refused app key (401) stops sending until configure is called again.
 //
 
 import XCTest
@@ -42,15 +43,87 @@ final class EventQueueTests: XCTestCase {
         XCTAssertTrue(queue.queuedEvents.isEmpty)
     }
 
-    func testUnauthorizedIsStillKeptForLater() async throws {
+    // MARK: - A 401 stops sending for the run
+
+    func testUnauthorizedMeansExactlyOneRequest() async throws {
         StubURLProtocol.start(status: { _ in 401 })
         let queue = makeQueue()
         queue.add(event("a"))
+        queue.add(event("b"))
+        queue.add(event("c"))
 
         await queue.flush()?.value
 
+        XCTAssertEqual(sentNames(), ["a"], "one 401 is one request: never retried, nothing after it sent")
+        XCTAssertTrue(queue.isRefused)
+        XCTAssertTrue(queue.queuedEvents.isEmpty, "the queued events are dropped")
+
+        // Later tracks are ignored and later flushes send nothing
+        queue.add(event("d"))
+        XCTAssertTrue(queue.queuedEvents.isEmpty)
+        XCTAssertNil(queue.flush())
         XCTAssertEqual(sentNames(), ["a"])
-        XCTAssertEqual(queue.queuedEvents.map(\.eventName), ["a"], "401 is kept for a later flush, as before")
+    }
+
+    func testUnauthorizedRetryWithoutPropertiesIsNotAttempted() async throws {
+        StubURLProtocol.start(status: { _ in 401 })
+        let queue = makeQueue()
+        queue.add(event("a", properties: ["paywall": .string("b")]))
+
+        await queue.flush()?.value
+
+        XCTAssertEqual(sentNames(), ["a"], "only a 400 is sent again without properties")
+        XCTAssertTrue(queue.isRefused)
+    }
+
+    func testStartAgainResumesSending() async throws {
+        StubURLProtocol.start(status: { _ in 401 })
+        let queue = makeQueue()
+        queue.add(event("a"))
+        await queue.flush()?.value
+        XCTAssertTrue(queue.isRefused)
+
+        StubURLProtocol.start()
+        queue.start()
+        queue.add(event("b"))
+        await queue.flush()?.value
+
+        XCTAssertFalse(queue.isRefused)
+        XCTAssertEqual(sentNames(), ["b"])
+        XCTAssertTrue(queue.queuedEvents.isEmpty)
+    }
+
+    func testConfigureAgainResetsAfterUnauthorized() throws {
+        // Through the SDK itself: track, a 401, more tracks, then configure again
+        let first = expectation(description: "the first event reaches the server")
+        let last = expectation(description: "the event after configure reaches the server")
+        StubURLProtocol.start(
+            status: { $0["event_name"] as? String == "a" ? 401 : 201 },
+            onReceive: { body in
+                let name = (try? JSONSerialization.jsonObject(with: body) as? [String: Any])?["event_name"] as? String
+                if name == "a" { first.fulfill() }
+                if name == "c" { last.fulfill() }
+            }
+        )
+        let sdk = Respectlytics(networkClient: NetworkClient(session: StubURLProtocol.session()))
+
+        sdk.setUp(apiKey: "wrong-key", apiEndpoint: endpoint)
+        sdk.record("a", .empty)
+        sdk.flushQueue()
+        wait(for: [first], timeout: 10)
+        let refused = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in sdk.eventQueue.isRefused }, object: nil)
+        wait(for: [refused], timeout: 10)
+
+        sdk.record("b", .empty)  // ignored: tracked after the 401
+        sdk.flushQueue()
+        sdk.setUp(apiKey: "right-key", apiEndpoint: endpoint)
+        sdk.record("c", .empty)
+        sdk.flushQueue()
+        wait(for: [last], timeout: 10)
+
+        // The SDK's queue is serial, so "b" would have reached the server before "c"
+        XCTAssertEqual(sentNames(), ["a", "c"])
+        XCTAssertFalse(sdk.eventQueue.isRefused)
     }
 
     // MARK: - A 400 is final

@@ -40,7 +40,8 @@ final class NetworkClient {
     /// Send one event to the API.
     ///
     /// Network errors and 429 are retried with backoff, and anything worth trying
-    /// again later (network errors, 429, 5xx, 401) is thrown, so the queue keeps the event.
+    /// again later (network errors, 429, 5xx) is thrown, so the queue keeps the event.
+    /// A 401 is thrown at once and never retried: the queue then stops sending.
     ///
     /// A 400 is final, since no retry can change it. An event with properties is
     /// then sent once more without them, for a server older than 3.1.0 (a self-hosted

@@ -4,7 +4,7 @@ Official Respectlytics SDK for iOS and macOS. Privacy-first analytics with autom
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/platform-iOS%2015%2B%20%7C%20macOS%2012%2B-lightgrey.svg)](https://developer.apple.com)
-[![Version](https://img.shields.io/badge/version-3.1.1-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/v3.1.1)
+[![Version](https://img.shields.io/badge/version-3.1.2-blue.svg)](https://github.com/respectlytics/respectlytics-swift/releases/tag/v3.1.2)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Installation
@@ -16,12 +16,12 @@ Add RespectlyticsSwift to your project using Swift Package Manager:
 **In Xcode:**
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/respectlytics/respectlytics-swift.git`
-3. Select version: `3.1.1` or later
+3. Select version: `3.1.2` or later
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "3.1.1")
+    .package(url: "https://github.com/respectlytics/respectlytics-swift.git", from: "3.1.2")
 ]
 ```
 
@@ -178,6 +178,7 @@ The SDK handles these automatically - no developer action needed:
 
 An event the server refuses as invalid (400) is dropped, so it never holds up the events after it.
 Once the server has confirmed an event, the SDK does not send it again.
+If the server refuses the app key (401), the SDK drops the events it holds and sends nothing more until the app starts again, since no retry can fix a wrong key.
 
 ## 🛡️ Privacy by Design
 

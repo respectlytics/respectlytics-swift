@@ -32,7 +32,7 @@ final class IntegrationTests: XCTestCase {
             TestConfiguration.printEnvironmentStatus()
             Self.environmentPrinted = true
             Self.testResults = []
-            print("🧪 Running Integration Tests (v3.1.1 - Session-Based Analytics)...")
+            print("🧪 Running Integration Tests (v3.1.2 - Session-Based Analytics)...")
         }
 
         // Check for API key - tests will be skipped if not set

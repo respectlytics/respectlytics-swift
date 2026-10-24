@@ -21,13 +21,23 @@ import Network
 ///
 /// The SDK auto-flushes every 30 seconds, on 10 queued events, and when the
 /// app enters background, so the loss window is narrow.
+///
+/// A 401 stops sending for the rest of the app's run, until `start()` is called
+/// again by `configure`: a wrong or revoked app key cannot be fixed by a retry,
+/// and every refused request counts toward the server's block of the device's
+/// address (10 in 15 minutes, shared with other sites at Cloudflare), so
+/// retrying would get the app's own users blocked.
 final class EventQueue {
+
+    static let unauthorizedMessage = "[Respectlytics] The app key was refused (401). Check it in your app's Settings on respectlytics.com. No events are sent until the app starts again."
 
     private var events: [Event] = []
     private var flushTimer: Timer?
     private let networkClient: NetworkClient
     private let networkMonitor = NWPathMonitor()
     private var isOnline = true
+    /// Set by a 401: nothing is queued or sent until `start()`.
+    private var refused = false
 
     private let maxQueueSize = 10
     private let flushInterval: TimeInterval = 30
@@ -46,13 +56,21 @@ final class EventQueue {
         networkMonitor.cancel()
     }
 
+    /// Start, or after `configure` is called again, resume sending.
     func start() {
+        lock.lock()
+        refused = false
+        lock.unlock()
         scheduleFlush()
     }
 
-    /// Add an event to the in-memory queue.
+    /// Add an event to the in-memory queue. Ignored after a 401.
     func add(_ event: Event) {
         lock.lock()
+        guard !refused else {
+            lock.unlock()
+            return
+        }
         events.append(event)
         let shouldFlush = events.count >= maxQueueSize
         lock.unlock()
@@ -69,11 +87,11 @@ final class EventQueue {
     /// server already accepted are never sent twice.
     ///
     /// - Returns: The task that sends the batch (tests wait on it), or nil when
-    ///   there was nothing to send or the device is offline.
+    ///   there was nothing to send, the device is offline, or a 401 stopped sending.
     @discardableResult
     func flush() -> Task<Void, Never>? {
         lock.lock()
-        guard !events.isEmpty else {
+        guard !refused, !events.isEmpty else {
             lock.unlock()
             return nil
         }
@@ -91,9 +109,13 @@ final class EventQueue {
             var sent = 0
             do {
                 for event in batch {
+                    // A 401 in another flush stopped sending: the rest is dropped
+                    guard !isRefused else { return }
                     try await networkClient.send(event)
                     sent += 1
                 }
+            } catch NetworkError.unauthorized {
+                stopForUnauthorized()
             } catch {
                 // Re-add only the events not yet sent to the in-memory queue for retry
                 requeue(Array(batch.dropFirst(sent)))
@@ -109,12 +131,34 @@ final class EventQueue {
         return events
     }
 
-    /// Put events that were not sent back at the front of the in-memory queue.
+    /// Whether a 401 stopped sending until the next `start()`.
+    var isRefused: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return refused
+    }
+
+    /// Put events that were not sent back at the front of the in-memory queue,
+    /// unless a 401 stopped sending meanwhile.
     /// A synchronous method, so the lock is never taken directly in the async task.
     private func requeue(_ batch: [Event]) {
         lock.lock()
-        events.insert(contentsOf: batch, at: 0)
+        if !refused {
+            events.insert(contentsOf: batch, at: 0)
+        }
         lock.unlock()
+    }
+
+    /// After a 401: drop every queued event, refuse new ones, and say so once.
+    private func stopForUnauthorized() {
+        lock.lock()
+        let first = !refused
+        refused = true
+        events = []
+        lock.unlock()
+        if first {
+            print(EventQueue.unauthorizedMessage)
+        }
     }
 
     // MARK: - Private Helpers

@@ -39,7 +39,7 @@ public final class Respectlytics {
 
     private var configuration: Configuration?
     private let sessionManager = SessionManager()
-    private let eventQueue: EventQueue
+    let eventQueue: EventQueue
     private let networkClient: NetworkClient
 
     private let queue = DispatchQueue(label: "com.respectlytics.sdk", qos: .utility)
